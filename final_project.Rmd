@@ -159,6 +159,8 @@ cvap_df <- rbind(cvap2008, cvap2012, cvap2016, cvap2020) %>%
 colSums(cvap_df == "" | is.na(cvap_df))
 ```
 
+#### Merge with Election data
+
 ```{r}
 voting_info_df <- left_join(elections_pivot_df, cvap_df, by = c("FIPS", "year"))
 
@@ -172,16 +174,21 @@ colSums(voting_info_df == "" | is.na(voting_info_df))
 voting_info_df_NAs <- voting_info_df %>% 
   filter(is.na(geoname), is.na(cvap_est))
 
-#unique(voting_info_df_NAs$year)
+voting_info_df_NAs
+
+unique(voting_info_df_NAs$year)
 ```
+
+
 ```{r}
 voting_info_df <- voting_info_df %>% 
   filter(year >= 2008)
 
 voting_info_df_NAs2 <- voting_info_df %>% 
   filter(is.na(geoname), is.na(cvap_est))
-```
 
+voting_info_df_NAs2
+```
 
 ```{r}
 voting_info_df <- voting_info_df %>% 
@@ -236,8 +243,7 @@ voting_info_df <- rbind(voting_info_df, county_groups)
 ```
 
 
-## Calculate additional columns
-
+#### Calculate additional columns
 
 ```{r}
 voting_info_final <- voting_info_df %>% 
@@ -319,14 +325,7 @@ ed_attain2020 <- get_acs(
   cache_table = TRUE) %>% 
   mutate(year=2020)
 
-#%>% 
-  # mutate(Label2 = Label,
-  #        Label2 = str_replace(Label2, "Estimate!!Total!!", ""),
-  #        #Label2 = str_replace_all(Label2, " ","_")
-  #        ) %>% 
-  # separate(Label2, into = c("gender", "age_group", "education"), sep = "!!")
 ```
-
 
 ```{r}
 #check column names
@@ -393,7 +392,9 @@ filteredtable20 <- table20 %>%
 
 ```
 
-```{r}
+```{r, results='hide'}
+#Are column names the same across all ACS data?
+
 filteredtable08==filteredtable12
 
 filteredtable08==filteredtable16
@@ -408,6 +409,7 @@ filteredtable16==filteredtable20
 ```
 
 ```{r}
+#update the mismatches
 filteredtable08 <- filteredtable08 %>% 
    mutate(Label = str_replace_all(Label,", GED, or alternative", ' (includes equivalency)'))
 
@@ -415,7 +417,10 @@ filteredtable12 <- filteredtable12 %>%
   mutate(Label = str_replace_all(Label,", GED, or alternative", ' (includes equivalency)'))
 ```
 
-```{r}
+```{r, results='hide'}
+#recheck 
+#Are column names the same across all ACS data?
+
 filteredtable08==filteredtable12
 
 filteredtable08==filteredtable16
@@ -427,6 +432,8 @@ filteredtable12==filteredtable16
 filteredtable12==filteredtable20
 
 filteredtable16==filteredtable20
+
+#yes, they are now so we can just use the column names from the latest ACS
 ```
 
 All column names are the same across all 4 election year Educational Attainment data.
@@ -455,11 +462,11 @@ colSums(ed_attain2 == "" | is.na(ed_attain2))
 
 ```{r}
 ed_attain3 <- ed_attain2 %>% 
-  # mutate(Label2 = Label,
-  #        Label2 = str_replace(Label2, "Estimate!!Total!!", ""),
-  #        #Label2 = str_replace_all(Label2, " ","_")
-  #        ) %>%
-  separate(Label, into = c("type","value","gender", "age_group", "education"), sep = "!!")
+  mutate(Label2 = Label,
+         #Label2 = str_replace(Label2, "Estimate!!Total!!", ""),
+         #Label2 = str_replace_all(Label2, " ","_")
+         ) %>%
+  separate(Label2, into = c("type","value","gender", "age_group", "education"), sep = "!!")
 ```
 
 ```{r}
@@ -469,6 +476,17 @@ head(ed_attain3, 10)
 ```{r}
 #identify empty and NA values
 colSums(ed_attain3 == "" | is.na(ed_attain3))
+```
+
+
+```{r}
+ed_attain3_na <- ed_attain3 %>% 
+  filter(is.na(gender) | is.na(age_group) | is.na(education))
+
+ed_attain3_na %>% 
+  count(variable, Label)
+
+unique(ed_attain3_na$variable)
 ```
 
   
