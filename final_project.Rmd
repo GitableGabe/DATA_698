@@ -151,9 +151,12 @@ cvap2020 <- read_csv("https://raw.githubusercontent.com/GitableGabe/DATA_698/ref
   mutate(year=2020) 
 
 cvap_df <- rbind(cvap2008, cvap2012, cvap2016, cvap2020) %>% 
-  filter(lntitle == 'Total') %>% 
+  filter(lntitle == 'Total', !str_detect(geoname, "Puerto Rico")) %>% 
   mutate(FIPS = str_sub(geoid, -5)) %>% 
   select(c('year', 'FIPS', 'geoname', 'cvap_est'))
+
+#identify empty and NA values
+colSums(cvap_df == "" | is.na(cvap_df))
 ```
 
 ```{r}
@@ -266,30 +269,68 @@ voting_info_final <- voting_info_df %>%
          pct_margin_of_victory = case_when(winning_party == "Democratic Party" ~ round(((votes_dem - votes_gop) / totalvotes)*100,3), #votes_dem > votes_gop
                                           winning_party == "Republican Party" ~ round(((votes_gop - votes_dem) / totalvotes)*100,3), #votes_gop > votes_dem
                                           )
-         )
+         ) 
 
 glimpse(voting_info_final)
 ```
 
-
-
-
 ### Educational Attainment data
 
-```{r}
+```{r, warning= FALSE, message=FALSE, results='hide'}
 # To obtain data for the 2008 population from the American Community Survey (ACS), 
 # you should use the 2006-2008 ACS 3-Year Estimates. This dataset aggregates data 
-# collected over those three years, providing insights for the population during that period
+# collected over those three years, providing insights for the population during that period.
+# 5 year ACS data unavailable for 2008. 3 year ACS data was discontinued after 2009.
 
-#load data using API
+#load 2008 data using API
 ed_attain2008 <- get_acs(
   geography = "county",
   variables = c(paste0("B15001_00", seq(01,09),"E"),paste0("B15001_0", seq(10,83),"E")),
   year = 2008,
   survey = "acs3",
-  cache_table = TRUE)
+  cache_table = TRUE) %>% 
+  mutate(year=2008)
 
-#get columnn names
+#2012 data and onward uses the 5 year ACS data
+#load 2012 data using API
+ed_attain2012 <- get_acs(
+  geography = "county",
+  variables = c(paste0("B15001_00", seq(01,09),"E"),paste0("B15001_0", seq(10,83),"E")),
+  year = 2012,
+  survey = "acs5",
+  cache_table = TRUE) %>% 
+  mutate(year=2012)
+
+#load 2016 data using API
+ed_attain2016 <- get_acs(
+  geography = "county",
+  variables = c(paste0("B15001_00", seq(01,09),"E"),paste0("B15001_0", seq(10,83),"E")),
+  year = 2016,
+  survey = "acs5",
+  cache_table = TRUE) %>% 
+  mutate(year=2016)
+
+#load 2020 data using API
+ed_attain2020 <- get_acs(
+  geography = "county",
+  variables = c(paste0("B15001_00", seq(01,09),"E"),paste0("B15001_0", seq(10,83),"E")),
+  year = 2020,
+  survey = "acs5",
+  cache_table = TRUE) %>% 
+  mutate(year=2020)
+
+#%>% 
+  # mutate(Label2 = Label,
+  #        Label2 = str_replace(Label2, "Estimate!!Total!!", ""),
+  #        #Label2 = str_replace_all(Label2, " ","_")
+  #        ) %>% 
+  # separate(Label2, into = c("gender", "age_group", "education"), sep = "!!")
+```
+
+
+```{r}
+#check column names
+#get column names 2008
 url08 <- "https://api.census.gov/data/2008/acs/acs3/groups/B15001.html"
 
 webpage08 <- read_html(url08)
@@ -301,57 +342,136 @@ table08 <- webpage08 %>%
 
 filteredtable08 <- table08 %>% 
   # filter(!is.na(Name) & Name != "") %>%  # Remove rows with NA or empty names
+  filter(Name %in% c(paste0("B15001_00", seq(01,09),"E"),paste0("B15001_0", seq(10,83),"E")))
+# %>% 
+#    mutate(Label = str_replace_all(Label,", GED, or alternative", ' (includes equivalency)'))
+
+#get column names  2012
+url12 <- "https://api.census.gov/data/2012/acs/acs5/groups/B15001.html"
+
+webpage12 <- read_html(url12)
+
+table12 <- webpage12 %>%
+  html_node("table") %>%  # Adjust the selector if necessary
+  html_table() %>% 
+  select(c("Name","Label","Concept","Required","Attributes","Limit","Predicate Type","Group"))
+
+filteredtable12 <- table12 %>% 
+  # filter(!is.na(Name) & Name != "") %>%  # Remove rows with NA or empty names
+  filter(Name %in% c(paste0("B15001_00", seq(01,09),"E"),paste0("B15001_0", seq(10,83),"E")))
+# %>% 
+#    mutate(Label = str_replace_all(Label,", GED, or alternative", ' (includes equivalency)'))
+
+#get column names 2016
+url16 <- "https://api.census.gov/data/2016/acs/acs5/groups/B15001.html"
+
+webpage16 <- read_html(url16)
+
+table16 <- webpage16 %>%
+  html_node("table") %>%  # Adjust the selector if necessary
+  html_table() %>% 
+  select(c("Name","Label","Concept","Required","Attributes","Limit","Predicate Type","Group"))
+
+filteredtable16 <- table16 %>% 
+  # filter(!is.na(Name) & Name != "") %>%  # Remove rows with NA or empty names
   filter(Name %in% c(paste0("B15001_00", seq(01,09),"E"),paste0("B15001_0", seq(10,83),"E"))) 
-#%>% 
+
+#get columnn names 2020
+url20 <- "https://api.census.gov/data/2020/acs/acs5/groups/B15001.html"
+
+webpage20 <- read_html(url20)
+
+table20 <- webpage20 %>%
+  html_node("table") %>%  # Adjust the selector if necessary
+  html_table() %>% 
+  select(c("Name","Label","Concept","Required","Attributes","Limit","Predicate Type","Group"))
+
+filteredtable20 <- table20 %>% 
+  # filter(!is.na(Name) & Name != "") %>%  # Remove rows with NA or empty names
+  filter(Name %in% c(paste0("B15001_00", seq(01,09),"E"),paste0("B15001_0", seq(10,83),"E"))) %>% 
+  mutate(Label = str_replace_all(Label,":",""))
+
+```
+
+```{r}
+filteredtable08==filteredtable12
+
+filteredtable08==filteredtable16
+
+filteredtable08==filteredtable20
+
+filteredtable12==filteredtable16
+
+filteredtable12==filteredtable20
+
+filteredtable16==filteredtable20
+```
+
+```{r}
+filteredtable08 <- filteredtable08 %>% 
+   mutate(Label = str_replace_all(Label,", GED, or alternative", ' (includes equivalency)'))
+
+filteredtable12 <- filteredtable12 %>% 
+  mutate(Label = str_replace_all(Label,", GED, or alternative", ' (includes equivalency)'))
+```
+
+```{r}
+filteredtable08==filteredtable12
+
+filteredtable08==filteredtable16
+
+filteredtable08==filteredtable20
+
+filteredtable12==filteredtable16
+
+filteredtable12==filteredtable20
+
+filteredtable16==filteredtable20
+```
+
+All column names are the same across all 4 election year Educational Attainment data.
+
+```{r}
+ed_attain <- rbind(ed_attain2008, ed_attain2012, ed_attain2016, ed_attain2020)
+
+```
+
+```{r}
+ed_colnames <- filteredtable20 %>% 
+  mutate(Name = str_replace_all(Name,"E","")) %>% 
+  select(c(Name, Label))
+
+sort(unique(ed_colnames$Name))==sort(unique(ed_attain$variable))
+
+ed_attain2 <- left_join(ed_attain, ed_colnames, by = c("variable"="Name"))
+
+glimpse(ed_attain2)
+```
+
+```{r}
+#identify empty and NA values
+colSums(ed_attain2 == "" | is.na(ed_attain2))
+```
+
+```{r}
+ed_attain3 <- ed_attain2 %>% 
   # mutate(Label2 = Label,
   #        Label2 = str_replace(Label2, "Estimate!!Total!!", ""),
   #        #Label2 = str_replace_all(Label2, " ","_")
-  #        ) %>% 
-  # separate(Label2, into = c("gender", "age_group", "education"), sep = "!!")
+  #        ) %>%
+  separate(Label, into = c("type","value","gender", "age_group", "education"), sep = "!!")
 ```
 
 ```{r}
-#load data using API
-ed_attain2012 <- get_acs(
-  geography = "county",
-  variables = c(paste0("B15001_00", seq(01,09),"E"),paste0("B15001_0", seq(10,83),"E")),
-  year = 2012,
-  survey = "acs5",
-  cache_table = TRUE)
-
-#get columnn names
-url12 <- "https://api.census.gov/data/2012/acs/acs5/groups/B15001.html"
-
+head(ed_attain3, 10)
 ```
 
 ```{r}
-#load data using API
-ed_attain2016 <- get_acs(
-  geography = "county",
-  variables = c(paste0("B15001_00", seq(01,09),"E"),paste0("B15001_0", seq(10,83),"E")),
-  year = 2016,
-  survey = "acs5",
-  cache_table = TRUE)
-
-#get columnn names
-url16 <- "https://api.census.gov/data/2016/acs/acs5/groups/B15001.html"
-
+#identify empty and NA values
+colSums(ed_attain3 == "" | is.na(ed_attain3))
 ```
 
-```{r}
-#load data using API
-ed_attain2020 <- get_acs(
-  geography = "county",
-  variables = c(paste0("B15001_00", seq(01,09),"E"),paste0("B15001_0", seq(10,83),"E")),
-  year = 2020,
-  survey = "acs5",
-  cache_table = TRUE)
-
-#get columnn names
-url20 <- "https://api.census.gov/data/2020/acs/acs5/groups/B15001.html"
-
-```
-
+  
   
 Other references and notes  
   
@@ -368,7 +488,7 @@ data engineering tasks to prepare election result data for predictive analysis.
 
 Voter turnout  
 https://electionlab.mit.edu/research/voter-turnout  
-https://election.lab.ufl.edu/ (VEP- Voting Eligible Population) data by state and election  
+https://election.lab.ufl.edu/ (VEP- Voting Eligible Population) data by state and election, by county not available  
   
 Redistricting   
 https://www.propublica.org/article/redistricting-a-devils-dictionary (definitions)  

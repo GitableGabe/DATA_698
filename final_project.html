@@ -525,9 +525,12 @@ div.tocify {
 <span id="cb28-19"><a href="#cb28-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">year=</span><span class="dv">2020</span>) </span>
 <span id="cb28-20"><a href="#cb28-20" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb28-21"><a href="#cb28-21" aria-hidden="true" tabindex="-1"></a>cvap_df <span class="ot">&lt;-</span> <span class="fu">rbind</span>(cvap2008, cvap2012, cvap2016, cvap2020) <span class="sc">%&gt;%</span> </span>
-<span id="cb28-22"><a href="#cb28-22" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(lntitle <span class="sc">==</span> <span class="st">&#39;Total&#39;</span>) <span class="sc">%&gt;%</span> </span>
+<span id="cb28-22"><a href="#cb28-22" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(lntitle <span class="sc">==</span> <span class="st">&#39;Total&#39;</span>, <span class="sc">!</span><span class="fu">str_detect</span>(geoname, <span class="st">&quot;Puerto Rico&quot;</span>)) <span class="sc">%&gt;%</span> </span>
 <span id="cb28-23"><a href="#cb28-23" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">FIPS =</span> <span class="fu">str_sub</span>(geoid, <span class="sc">-</span><span class="dv">5</span>)) <span class="sc">%&gt;%</span> </span>
-<span id="cb28-24"><a href="#cb28-24" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(<span class="fu">c</span>(<span class="st">&#39;year&#39;</span>, <span class="st">&#39;FIPS&#39;</span>, <span class="st">&#39;geoname&#39;</span>, <span class="st">&#39;cvap_est&#39;</span>))</span></code></pre></div>
+<span id="cb28-24"><a href="#cb28-24" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(<span class="fu">c</span>(<span class="st">&#39;year&#39;</span>, <span class="st">&#39;FIPS&#39;</span>, <span class="st">&#39;geoname&#39;</span>, <span class="st">&#39;cvap_est&#39;</span>))</span>
+<span id="cb28-25"><a href="#cb28-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-26"><a href="#cb28-26" aria-hidden="true" tabindex="-1"></a><span class="co">#identify empty and NA values</span></span>
+<span id="cb28-27"><a href="#cb28-27" aria-hidden="true" tabindex="-1"></a><span class="fu">colSums</span>(cvap_df <span class="sc">==</span> <span class="st">&quot;&quot;</span> <span class="sc">|</span> <span class="fu">is.na</span>(cvap_df))</span></code></pre></div>
 <div class="sourceCode" id="cb29"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a>voting_info_df <span class="ot">&lt;-</span> <span class="fu">left_join</span>(elections_pivot_df, cvap_df, <span class="at">by =</span> <span class="fu">c</span>(<span class="st">&quot;FIPS&quot;</span>, <span class="st">&quot;year&quot;</span>))</span>
 <span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb29-3"><a href="#cb29-3" aria-hidden="true" tabindex="-1"></a>voting_info_df</span></code></pre></div>
@@ -684,7 +687,7 @@ div.tocify {
 <span id="cb47-27"><a href="#cb47-27" aria-hidden="true" tabindex="-1"></a>         <span class="at">pct_margin_of_victory =</span> <span class="fu">case_when</span>(winning_party <span class="sc">==</span> <span class="st">&quot;Democratic Party&quot;</span> <span class="sc">~</span> <span class="fu">round</span>(((votes_dem <span class="sc">-</span> votes_gop) <span class="sc">/</span> totalvotes)<span class="sc">*</span><span class="dv">100</span>,<span class="dv">3</span>), <span class="co">#votes_dem &gt; votes_gop</span></span>
 <span id="cb47-28"><a href="#cb47-28" aria-hidden="true" tabindex="-1"></a>                                          winning_party <span class="sc">==</span> <span class="st">&quot;Republican Party&quot;</span> <span class="sc">~</span> <span class="fu">round</span>(((votes_gop <span class="sc">-</span> votes_dem) <span class="sc">/</span> totalvotes)<span class="sc">*</span><span class="dv">100</span>,<span class="dv">3</span>), <span class="co">#votes_gop &gt; votes_dem</span></span>
 <span id="cb47-29"><a href="#cb47-29" aria-hidden="true" tabindex="-1"></a>                                          )</span>
-<span id="cb47-30"><a href="#cb47-30" aria-hidden="true" tabindex="-1"></a>         )</span>
+<span id="cb47-30"><a href="#cb47-30" aria-hidden="true" tabindex="-1"></a>         ) </span>
 <span id="cb47-31"><a href="#cb47-31" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb47-32"><a href="#cb47-32" aria-hidden="true" tabindex="-1"></a><span class="fu">glimpse</span>(voting_info_final)</span></code></pre></div>
 <pre><code>## Rows: 12,448
@@ -721,73 +724,1203 @@ div.tocify {
 <h3>Educational Attainment data</h3>
 <div class="sourceCode" id="cb49"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb49-1"><a href="#cb49-1" aria-hidden="true" tabindex="-1"></a><span class="co"># To obtain data for the 2008 population from the American Community Survey (ACS), </span></span>
 <span id="cb49-2"><a href="#cb49-2" aria-hidden="true" tabindex="-1"></a><span class="co"># you should use the 2006-2008 ACS 3-Year Estimates. This dataset aggregates data </span></span>
-<span id="cb49-3"><a href="#cb49-3" aria-hidden="true" tabindex="-1"></a><span class="co"># collected over those three years, providing insights for the population during that period</span></span>
-<span id="cb49-4"><a href="#cb49-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb49-5"><a href="#cb49-5" aria-hidden="true" tabindex="-1"></a><span class="co">#load data using API</span></span>
-<span id="cb49-6"><a href="#cb49-6" aria-hidden="true" tabindex="-1"></a>ed_attain2008 <span class="ot">&lt;-</span> <span class="fu">get_acs</span>(</span>
-<span id="cb49-7"><a href="#cb49-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">geography =</span> <span class="st">&quot;county&quot;</span>,</span>
-<span id="cb49-8"><a href="#cb49-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">variables =</span> <span class="fu">c</span>(<span class="fu">paste0</span>(<span class="st">&quot;B15001_00&quot;</span>, <span class="fu">seq</span>(<span class="dv">01</span>,<span class="dv">09</span>),<span class="st">&quot;E&quot;</span>),<span class="fu">paste0</span>(<span class="st">&quot;B15001_0&quot;</span>, <span class="fu">seq</span>(<span class="dv">10</span>,<span class="dv">83</span>),<span class="st">&quot;E&quot;</span>)),</span>
-<span id="cb49-9"><a href="#cb49-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">year =</span> <span class="dv">2008</span>,</span>
-<span id="cb49-10"><a href="#cb49-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">survey =</span> <span class="st">&quot;acs3&quot;</span>,</span>
-<span id="cb49-11"><a href="#cb49-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">cache_table =</span> <span class="cn">TRUE</span>)</span></code></pre></div>
-<pre><code>## Getting data from the 2006-2008 3-year ACS</code></pre>
-<pre><code>## The 3-year ACS provides data for geographies with populations of 20,000 and greater.</code></pre>
-<div class="sourceCode" id="cb52"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb52-1"><a href="#cb52-1" aria-hidden="true" tabindex="-1"></a><span class="co">#get columnn names</span></span>
-<span id="cb52-2"><a href="#cb52-2" aria-hidden="true" tabindex="-1"></a>url08 <span class="ot">&lt;-</span> <span class="st">&quot;https://api.census.gov/data/2008/acs/acs3/groups/B15001.html&quot;</span></span>
-<span id="cb52-3"><a href="#cb52-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb52-4"><a href="#cb52-4" aria-hidden="true" tabindex="-1"></a>webpage08 <span class="ot">&lt;-</span> <span class="fu">read_html</span>(url08)</span>
-<span id="cb52-5"><a href="#cb52-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb52-6"><a href="#cb52-6" aria-hidden="true" tabindex="-1"></a>table08 <span class="ot">&lt;-</span> webpage08 <span class="sc">%&gt;%</span></span>
-<span id="cb52-7"><a href="#cb52-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">html_node</span>(<span class="st">&quot;table&quot;</span>) <span class="sc">%&gt;%</span>  <span class="co"># Adjust the selector if necessary</span></span>
-<span id="cb52-8"><a href="#cb52-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">html_table</span>() <span class="sc">%&gt;%</span> </span>
-<span id="cb52-9"><a href="#cb52-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(<span class="fu">c</span>(<span class="st">&quot;Name&quot;</span>,<span class="st">&quot;Label&quot;</span>,<span class="st">&quot;Concept&quot;</span>,<span class="st">&quot;Required&quot;</span>,<span class="st">&quot;Attributes&quot;</span>,<span class="st">&quot;Limit&quot;</span>,<span class="st">&quot;Predicate Type&quot;</span>,<span class="st">&quot;Group&quot;</span>))</span>
-<span id="cb52-10"><a href="#cb52-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb52-11"><a href="#cb52-11" aria-hidden="true" tabindex="-1"></a>filteredtable08 <span class="ot">&lt;-</span> table08 <span class="sc">%&gt;%</span> </span>
-<span id="cb52-12"><a href="#cb52-12" aria-hidden="true" tabindex="-1"></a>  <span class="co"># filter(!is.na(Name) &amp; Name != &quot;&quot;) %&gt;%  # Remove rows with NA or empty names</span></span>
-<span id="cb52-13"><a href="#cb52-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(Name <span class="sc">%in%</span> <span class="fu">c</span>(<span class="fu">paste0</span>(<span class="st">&quot;B15001_00&quot;</span>, <span class="fu">seq</span>(<span class="dv">01</span>,<span class="dv">09</span>),<span class="st">&quot;E&quot;</span>),<span class="fu">paste0</span>(<span class="st">&quot;B15001_0&quot;</span>, <span class="fu">seq</span>(<span class="dv">10</span>,<span class="dv">83</span>),<span class="st">&quot;E&quot;</span>))) </span>
-<span id="cb52-14"><a href="#cb52-14" aria-hidden="true" tabindex="-1"></a><span class="co">#%&gt;% </span></span>
-<span id="cb52-15"><a href="#cb52-15" aria-hidden="true" tabindex="-1"></a>  <span class="co"># mutate(Label2 = Label,</span></span>
-<span id="cb52-16"><a href="#cb52-16" aria-hidden="true" tabindex="-1"></a>  <span class="co">#        Label2 = str_replace(Label2, &quot;Estimate!!Total!!&quot;, &quot;&quot;),</span></span>
-<span id="cb52-17"><a href="#cb52-17" aria-hidden="true" tabindex="-1"></a>  <span class="co">#        #Label2 = str_replace_all(Label2, &quot; &quot;,&quot;_&quot;)</span></span>
-<span id="cb52-18"><a href="#cb52-18" aria-hidden="true" tabindex="-1"></a>  <span class="co">#        ) %&gt;% </span></span>
-<span id="cb52-19"><a href="#cb52-19" aria-hidden="true" tabindex="-1"></a>  <span class="co"># separate(Label2, into = c(&quot;gender&quot;, &quot;age_group&quot;, &quot;education&quot;), sep = &quot;!!&quot;)</span></span></code></pre></div>
-<div class="sourceCode" id="cb53"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb53-1"><a href="#cb53-1" aria-hidden="true" tabindex="-1"></a><span class="co">#load data using API</span></span>
-<span id="cb53-2"><a href="#cb53-2" aria-hidden="true" tabindex="-1"></a>ed_attain2012 <span class="ot">&lt;-</span> <span class="fu">get_acs</span>(</span>
-<span id="cb53-3"><a href="#cb53-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">geography =</span> <span class="st">&quot;county&quot;</span>,</span>
-<span id="cb53-4"><a href="#cb53-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">variables =</span> <span class="fu">c</span>(<span class="fu">paste0</span>(<span class="st">&quot;B15001_00&quot;</span>, <span class="fu">seq</span>(<span class="dv">01</span>,<span class="dv">09</span>),<span class="st">&quot;E&quot;</span>),<span class="fu">paste0</span>(<span class="st">&quot;B15001_0&quot;</span>, <span class="fu">seq</span>(<span class="dv">10</span>,<span class="dv">83</span>),<span class="st">&quot;E&quot;</span>)),</span>
-<span id="cb53-5"><a href="#cb53-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">year =</span> <span class="dv">2012</span>,</span>
-<span id="cb53-6"><a href="#cb53-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">survey =</span> <span class="st">&quot;acs5&quot;</span>,</span>
-<span id="cb53-7"><a href="#cb53-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">cache_table =</span> <span class="cn">TRUE</span>)</span></code></pre></div>
-<pre><code>## Getting data from the 2008-2012 5-year ACS</code></pre>
-<div class="sourceCode" id="cb55"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb55-1"><a href="#cb55-1" aria-hidden="true" tabindex="-1"></a><span class="co">#get columnn names</span></span>
-<span id="cb55-2"><a href="#cb55-2" aria-hidden="true" tabindex="-1"></a>url12 <span class="ot">&lt;-</span> <span class="st">&quot;https://api.census.gov/data/2012/acs/acs5/groups/B15001.html&quot;</span></span></code></pre></div>
-<div class="sourceCode" id="cb56"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb56-1"><a href="#cb56-1" aria-hidden="true" tabindex="-1"></a><span class="co">#load data using API</span></span>
-<span id="cb56-2"><a href="#cb56-2" aria-hidden="true" tabindex="-1"></a>ed_attain2016 <span class="ot">&lt;-</span> <span class="fu">get_acs</span>(</span>
-<span id="cb56-3"><a href="#cb56-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">geography =</span> <span class="st">&quot;county&quot;</span>,</span>
-<span id="cb56-4"><a href="#cb56-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">variables =</span> <span class="fu">c</span>(<span class="fu">paste0</span>(<span class="st">&quot;B15001_00&quot;</span>, <span class="fu">seq</span>(<span class="dv">01</span>,<span class="dv">09</span>),<span class="st">&quot;E&quot;</span>),<span class="fu">paste0</span>(<span class="st">&quot;B15001_0&quot;</span>, <span class="fu">seq</span>(<span class="dv">10</span>,<span class="dv">83</span>),<span class="st">&quot;E&quot;</span>)),</span>
-<span id="cb56-5"><a href="#cb56-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">year =</span> <span class="dv">2016</span>,</span>
-<span id="cb56-6"><a href="#cb56-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">survey =</span> <span class="st">&quot;acs5&quot;</span>,</span>
-<span id="cb56-7"><a href="#cb56-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">cache_table =</span> <span class="cn">TRUE</span>)</span></code></pre></div>
-<pre><code>## Getting data from the 2012-2016 5-year ACS</code></pre>
-<div class="sourceCode" id="cb58"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb58-1"><a href="#cb58-1" aria-hidden="true" tabindex="-1"></a><span class="co">#get columnn names</span></span>
-<span id="cb58-2"><a href="#cb58-2" aria-hidden="true" tabindex="-1"></a>url16 <span class="ot">&lt;-</span> <span class="st">&quot;https://api.census.gov/data/2016/acs/acs5/groups/B15001.html&quot;</span></span></code></pre></div>
-<div class="sourceCode" id="cb59"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb59-1"><a href="#cb59-1" aria-hidden="true" tabindex="-1"></a><span class="co">#load data using API</span></span>
-<span id="cb59-2"><a href="#cb59-2" aria-hidden="true" tabindex="-1"></a>ed_attain2020 <span class="ot">&lt;-</span> <span class="fu">get_acs</span>(</span>
-<span id="cb59-3"><a href="#cb59-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">geography =</span> <span class="st">&quot;county&quot;</span>,</span>
-<span id="cb59-4"><a href="#cb59-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">variables =</span> <span class="fu">c</span>(<span class="fu">paste0</span>(<span class="st">&quot;B15001_00&quot;</span>, <span class="fu">seq</span>(<span class="dv">01</span>,<span class="dv">09</span>),<span class="st">&quot;E&quot;</span>),<span class="fu">paste0</span>(<span class="st">&quot;B15001_0&quot;</span>, <span class="fu">seq</span>(<span class="dv">10</span>,<span class="dv">83</span>),<span class="st">&quot;E&quot;</span>)),</span>
-<span id="cb59-5"><a href="#cb59-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">year =</span> <span class="dv">2020</span>,</span>
-<span id="cb59-6"><a href="#cb59-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">survey =</span> <span class="st">&quot;acs5&quot;</span>,</span>
-<span id="cb59-7"><a href="#cb59-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">cache_table =</span> <span class="cn">TRUE</span>)</span></code></pre></div>
-<pre><code>## Getting data from the 2016-2020 5-year ACS</code></pre>
-<div class="sourceCode" id="cb61"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb61-1"><a href="#cb61-1" aria-hidden="true" tabindex="-1"></a><span class="co">#get columnn names</span></span>
-<span id="cb61-2"><a href="#cb61-2" aria-hidden="true" tabindex="-1"></a>url20 <span class="ot">&lt;-</span> <span class="st">&quot;https://api.census.gov/data/2020/acs/acs5/groups/B15001.html&quot;</span></span></code></pre></div>
+<span id="cb49-3"><a href="#cb49-3" aria-hidden="true" tabindex="-1"></a><span class="co"># collected over those three years, providing insights for the population during that period.</span></span>
+<span id="cb49-4"><a href="#cb49-4" aria-hidden="true" tabindex="-1"></a><span class="co"># 5 year ACS data unavailable for 2008. 3 year ACS data was discontinued after 2009.</span></span>
+<span id="cb49-5"><a href="#cb49-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb49-6"><a href="#cb49-6" aria-hidden="true" tabindex="-1"></a><span class="co">#load 2008 data using API</span></span>
+<span id="cb49-7"><a href="#cb49-7" aria-hidden="true" tabindex="-1"></a>ed_attain2008 <span class="ot">&lt;-</span> <span class="fu">get_acs</span>(</span>
+<span id="cb49-8"><a href="#cb49-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">geography =</span> <span class="st">&quot;county&quot;</span>,</span>
+<span id="cb49-9"><a href="#cb49-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">variables =</span> <span class="fu">c</span>(<span class="fu">paste0</span>(<span class="st">&quot;B15001_00&quot;</span>, <span class="fu">seq</span>(<span class="dv">01</span>,<span class="dv">09</span>),<span class="st">&quot;E&quot;</span>),<span class="fu">paste0</span>(<span class="st">&quot;B15001_0&quot;</span>, <span class="fu">seq</span>(<span class="dv">10</span>,<span class="dv">83</span>),<span class="st">&quot;E&quot;</span>)),</span>
+<span id="cb49-10"><a href="#cb49-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">year =</span> <span class="dv">2008</span>,</span>
+<span id="cb49-11"><a href="#cb49-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">survey =</span> <span class="st">&quot;acs3&quot;</span>,</span>
+<span id="cb49-12"><a href="#cb49-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">cache_table =</span> <span class="cn">TRUE</span>) <span class="sc">%&gt;%</span> </span>
+<span id="cb49-13"><a href="#cb49-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">year=</span><span class="dv">2008</span>)</span>
+<span id="cb49-14"><a href="#cb49-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb49-15"><a href="#cb49-15" aria-hidden="true" tabindex="-1"></a><span class="co">#2012 data and onward uses the 5 year ACS data</span></span>
+<span id="cb49-16"><a href="#cb49-16" aria-hidden="true" tabindex="-1"></a><span class="co">#load 2012 data using API</span></span>
+<span id="cb49-17"><a href="#cb49-17" aria-hidden="true" tabindex="-1"></a>ed_attain2012 <span class="ot">&lt;-</span> <span class="fu">get_acs</span>(</span>
+<span id="cb49-18"><a href="#cb49-18" aria-hidden="true" tabindex="-1"></a>  <span class="at">geography =</span> <span class="st">&quot;county&quot;</span>,</span>
+<span id="cb49-19"><a href="#cb49-19" aria-hidden="true" tabindex="-1"></a>  <span class="at">variables =</span> <span class="fu">c</span>(<span class="fu">paste0</span>(<span class="st">&quot;B15001_00&quot;</span>, <span class="fu">seq</span>(<span class="dv">01</span>,<span class="dv">09</span>),<span class="st">&quot;E&quot;</span>),<span class="fu">paste0</span>(<span class="st">&quot;B15001_0&quot;</span>, <span class="fu">seq</span>(<span class="dv">10</span>,<span class="dv">83</span>),<span class="st">&quot;E&quot;</span>)),</span>
+<span id="cb49-20"><a href="#cb49-20" aria-hidden="true" tabindex="-1"></a>  <span class="at">year =</span> <span class="dv">2012</span>,</span>
+<span id="cb49-21"><a href="#cb49-21" aria-hidden="true" tabindex="-1"></a>  <span class="at">survey =</span> <span class="st">&quot;acs5&quot;</span>,</span>
+<span id="cb49-22"><a href="#cb49-22" aria-hidden="true" tabindex="-1"></a>  <span class="at">cache_table =</span> <span class="cn">TRUE</span>) <span class="sc">%&gt;%</span> </span>
+<span id="cb49-23"><a href="#cb49-23" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">year=</span><span class="dv">2012</span>)</span>
+<span id="cb49-24"><a href="#cb49-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb49-25"><a href="#cb49-25" aria-hidden="true" tabindex="-1"></a><span class="co">#load 2016 data using API</span></span>
+<span id="cb49-26"><a href="#cb49-26" aria-hidden="true" tabindex="-1"></a>ed_attain2016 <span class="ot">&lt;-</span> <span class="fu">get_acs</span>(</span>
+<span id="cb49-27"><a href="#cb49-27" aria-hidden="true" tabindex="-1"></a>  <span class="at">geography =</span> <span class="st">&quot;county&quot;</span>,</span>
+<span id="cb49-28"><a href="#cb49-28" aria-hidden="true" tabindex="-1"></a>  <span class="at">variables =</span> <span class="fu">c</span>(<span class="fu">paste0</span>(<span class="st">&quot;B15001_00&quot;</span>, <span class="fu">seq</span>(<span class="dv">01</span>,<span class="dv">09</span>),<span class="st">&quot;E&quot;</span>),<span class="fu">paste0</span>(<span class="st">&quot;B15001_0&quot;</span>, <span class="fu">seq</span>(<span class="dv">10</span>,<span class="dv">83</span>),<span class="st">&quot;E&quot;</span>)),</span>
+<span id="cb49-29"><a href="#cb49-29" aria-hidden="true" tabindex="-1"></a>  <span class="at">year =</span> <span class="dv">2016</span>,</span>
+<span id="cb49-30"><a href="#cb49-30" aria-hidden="true" tabindex="-1"></a>  <span class="at">survey =</span> <span class="st">&quot;acs5&quot;</span>,</span>
+<span id="cb49-31"><a href="#cb49-31" aria-hidden="true" tabindex="-1"></a>  <span class="at">cache_table =</span> <span class="cn">TRUE</span>) <span class="sc">%&gt;%</span> </span>
+<span id="cb49-32"><a href="#cb49-32" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">year=</span><span class="dv">2016</span>)</span>
+<span id="cb49-33"><a href="#cb49-33" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb49-34"><a href="#cb49-34" aria-hidden="true" tabindex="-1"></a><span class="co">#load 2020 data using API</span></span>
+<span id="cb49-35"><a href="#cb49-35" aria-hidden="true" tabindex="-1"></a>ed_attain2020 <span class="ot">&lt;-</span> <span class="fu">get_acs</span>(</span>
+<span id="cb49-36"><a href="#cb49-36" aria-hidden="true" tabindex="-1"></a>  <span class="at">geography =</span> <span class="st">&quot;county&quot;</span>,</span>
+<span id="cb49-37"><a href="#cb49-37" aria-hidden="true" tabindex="-1"></a>  <span class="at">variables =</span> <span class="fu">c</span>(<span class="fu">paste0</span>(<span class="st">&quot;B15001_00&quot;</span>, <span class="fu">seq</span>(<span class="dv">01</span>,<span class="dv">09</span>),<span class="st">&quot;E&quot;</span>),<span class="fu">paste0</span>(<span class="st">&quot;B15001_0&quot;</span>, <span class="fu">seq</span>(<span class="dv">10</span>,<span class="dv">83</span>),<span class="st">&quot;E&quot;</span>)),</span>
+<span id="cb49-38"><a href="#cb49-38" aria-hidden="true" tabindex="-1"></a>  <span class="at">year =</span> <span class="dv">2020</span>,</span>
+<span id="cb49-39"><a href="#cb49-39" aria-hidden="true" tabindex="-1"></a>  <span class="at">survey =</span> <span class="st">&quot;acs5&quot;</span>,</span>
+<span id="cb49-40"><a href="#cb49-40" aria-hidden="true" tabindex="-1"></a>  <span class="at">cache_table =</span> <span class="cn">TRUE</span>) <span class="sc">%&gt;%</span> </span>
+<span id="cb49-41"><a href="#cb49-41" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">year=</span><span class="dv">2020</span>)</span>
+<span id="cb49-42"><a href="#cb49-42" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb49-43"><a href="#cb49-43" aria-hidden="true" tabindex="-1"></a><span class="co">#%&gt;% </span></span>
+<span id="cb49-44"><a href="#cb49-44" aria-hidden="true" tabindex="-1"></a>  <span class="co"># mutate(Label2 = Label,</span></span>
+<span id="cb49-45"><a href="#cb49-45" aria-hidden="true" tabindex="-1"></a>  <span class="co">#        Label2 = str_replace(Label2, &quot;Estimate!!Total!!&quot;, &quot;&quot;),</span></span>
+<span id="cb49-46"><a href="#cb49-46" aria-hidden="true" tabindex="-1"></a>  <span class="co">#        #Label2 = str_replace_all(Label2, &quot; &quot;,&quot;_&quot;)</span></span>
+<span id="cb49-47"><a href="#cb49-47" aria-hidden="true" tabindex="-1"></a>  <span class="co">#        ) %&gt;% </span></span>
+<span id="cb49-48"><a href="#cb49-48" aria-hidden="true" tabindex="-1"></a>  <span class="co"># separate(Label2, into = c(&quot;gender&quot;, &quot;age_group&quot;, &quot;education&quot;), sep = &quot;!!&quot;)</span></span></code></pre></div>
+<div class="sourceCode" id="cb50"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb50-1"><a href="#cb50-1" aria-hidden="true" tabindex="-1"></a><span class="co">#check column names</span></span>
+<span id="cb50-2"><a href="#cb50-2" aria-hidden="true" tabindex="-1"></a><span class="co">#get column names 2008</span></span>
+<span id="cb50-3"><a href="#cb50-3" aria-hidden="true" tabindex="-1"></a>url08 <span class="ot">&lt;-</span> <span class="st">&quot;https://api.census.gov/data/2008/acs/acs3/groups/B15001.html&quot;</span></span>
+<span id="cb50-4"><a href="#cb50-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb50-5"><a href="#cb50-5" aria-hidden="true" tabindex="-1"></a>webpage08 <span class="ot">&lt;-</span> <span class="fu">read_html</span>(url08)</span>
+<span id="cb50-6"><a href="#cb50-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb50-7"><a href="#cb50-7" aria-hidden="true" tabindex="-1"></a>table08 <span class="ot">&lt;-</span> webpage08 <span class="sc">%&gt;%</span></span>
+<span id="cb50-8"><a href="#cb50-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">html_node</span>(<span class="st">&quot;table&quot;</span>) <span class="sc">%&gt;%</span>  <span class="co"># Adjust the selector if necessary</span></span>
+<span id="cb50-9"><a href="#cb50-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">html_table</span>() <span class="sc">%&gt;%</span> </span>
+<span id="cb50-10"><a href="#cb50-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(<span class="fu">c</span>(<span class="st">&quot;Name&quot;</span>,<span class="st">&quot;Label&quot;</span>,<span class="st">&quot;Concept&quot;</span>,<span class="st">&quot;Required&quot;</span>,<span class="st">&quot;Attributes&quot;</span>,<span class="st">&quot;Limit&quot;</span>,<span class="st">&quot;Predicate Type&quot;</span>,<span class="st">&quot;Group&quot;</span>))</span>
+<span id="cb50-11"><a href="#cb50-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb50-12"><a href="#cb50-12" aria-hidden="true" tabindex="-1"></a>filteredtable08 <span class="ot">&lt;-</span> table08 <span class="sc">%&gt;%</span> </span>
+<span id="cb50-13"><a href="#cb50-13" aria-hidden="true" tabindex="-1"></a>  <span class="co"># filter(!is.na(Name) &amp; Name != &quot;&quot;) %&gt;%  # Remove rows with NA or empty names</span></span>
+<span id="cb50-14"><a href="#cb50-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(Name <span class="sc">%in%</span> <span class="fu">c</span>(<span class="fu">paste0</span>(<span class="st">&quot;B15001_00&quot;</span>, <span class="fu">seq</span>(<span class="dv">01</span>,<span class="dv">09</span>),<span class="st">&quot;E&quot;</span>),<span class="fu">paste0</span>(<span class="st">&quot;B15001_0&quot;</span>, <span class="fu">seq</span>(<span class="dv">10</span>,<span class="dv">83</span>),<span class="st">&quot;E&quot;</span>)))</span>
+<span id="cb50-15"><a href="#cb50-15" aria-hidden="true" tabindex="-1"></a><span class="co"># %&gt;% </span></span>
+<span id="cb50-16"><a href="#cb50-16" aria-hidden="true" tabindex="-1"></a><span class="co">#    mutate(Label = str_replace_all(Label,&quot;, GED, or alternative&quot;, &#39; (includes equivalency)&#39;))</span></span>
+<span id="cb50-17"><a href="#cb50-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb50-18"><a href="#cb50-18" aria-hidden="true" tabindex="-1"></a><span class="co">#get column names  2012</span></span>
+<span id="cb50-19"><a href="#cb50-19" aria-hidden="true" tabindex="-1"></a>url12 <span class="ot">&lt;-</span> <span class="st">&quot;https://api.census.gov/data/2012/acs/acs5/groups/B15001.html&quot;</span></span>
+<span id="cb50-20"><a href="#cb50-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb50-21"><a href="#cb50-21" aria-hidden="true" tabindex="-1"></a>webpage12 <span class="ot">&lt;-</span> <span class="fu">read_html</span>(url12)</span>
+<span id="cb50-22"><a href="#cb50-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb50-23"><a href="#cb50-23" aria-hidden="true" tabindex="-1"></a>table12 <span class="ot">&lt;-</span> webpage12 <span class="sc">%&gt;%</span></span>
+<span id="cb50-24"><a href="#cb50-24" aria-hidden="true" tabindex="-1"></a>  <span class="fu">html_node</span>(<span class="st">&quot;table&quot;</span>) <span class="sc">%&gt;%</span>  <span class="co"># Adjust the selector if necessary</span></span>
+<span id="cb50-25"><a href="#cb50-25" aria-hidden="true" tabindex="-1"></a>  <span class="fu">html_table</span>() <span class="sc">%&gt;%</span> </span>
+<span id="cb50-26"><a href="#cb50-26" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(<span class="fu">c</span>(<span class="st">&quot;Name&quot;</span>,<span class="st">&quot;Label&quot;</span>,<span class="st">&quot;Concept&quot;</span>,<span class="st">&quot;Required&quot;</span>,<span class="st">&quot;Attributes&quot;</span>,<span class="st">&quot;Limit&quot;</span>,<span class="st">&quot;Predicate Type&quot;</span>,<span class="st">&quot;Group&quot;</span>))</span>
+<span id="cb50-27"><a href="#cb50-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb50-28"><a href="#cb50-28" aria-hidden="true" tabindex="-1"></a>filteredtable12 <span class="ot">&lt;-</span> table12 <span class="sc">%&gt;%</span> </span>
+<span id="cb50-29"><a href="#cb50-29" aria-hidden="true" tabindex="-1"></a>  <span class="co"># filter(!is.na(Name) &amp; Name != &quot;&quot;) %&gt;%  # Remove rows with NA or empty names</span></span>
+<span id="cb50-30"><a href="#cb50-30" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(Name <span class="sc">%in%</span> <span class="fu">c</span>(<span class="fu">paste0</span>(<span class="st">&quot;B15001_00&quot;</span>, <span class="fu">seq</span>(<span class="dv">01</span>,<span class="dv">09</span>),<span class="st">&quot;E&quot;</span>),<span class="fu">paste0</span>(<span class="st">&quot;B15001_0&quot;</span>, <span class="fu">seq</span>(<span class="dv">10</span>,<span class="dv">83</span>),<span class="st">&quot;E&quot;</span>)))</span>
+<span id="cb50-31"><a href="#cb50-31" aria-hidden="true" tabindex="-1"></a><span class="co"># %&gt;% </span></span>
+<span id="cb50-32"><a href="#cb50-32" aria-hidden="true" tabindex="-1"></a><span class="co">#    mutate(Label = str_replace_all(Label,&quot;, GED, or alternative&quot;, &#39; (includes equivalency)&#39;))</span></span>
+<span id="cb50-33"><a href="#cb50-33" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb50-34"><a href="#cb50-34" aria-hidden="true" tabindex="-1"></a><span class="co">#get column names 2016</span></span>
+<span id="cb50-35"><a href="#cb50-35" aria-hidden="true" tabindex="-1"></a>url16 <span class="ot">&lt;-</span> <span class="st">&quot;https://api.census.gov/data/2016/acs/acs5/groups/B15001.html&quot;</span></span>
+<span id="cb50-36"><a href="#cb50-36" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb50-37"><a href="#cb50-37" aria-hidden="true" tabindex="-1"></a>webpage16 <span class="ot">&lt;-</span> <span class="fu">read_html</span>(url16)</span>
+<span id="cb50-38"><a href="#cb50-38" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb50-39"><a href="#cb50-39" aria-hidden="true" tabindex="-1"></a>table16 <span class="ot">&lt;-</span> webpage16 <span class="sc">%&gt;%</span></span>
+<span id="cb50-40"><a href="#cb50-40" aria-hidden="true" tabindex="-1"></a>  <span class="fu">html_node</span>(<span class="st">&quot;table&quot;</span>) <span class="sc">%&gt;%</span>  <span class="co"># Adjust the selector if necessary</span></span>
+<span id="cb50-41"><a href="#cb50-41" aria-hidden="true" tabindex="-1"></a>  <span class="fu">html_table</span>() <span class="sc">%&gt;%</span> </span>
+<span id="cb50-42"><a href="#cb50-42" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(<span class="fu">c</span>(<span class="st">&quot;Name&quot;</span>,<span class="st">&quot;Label&quot;</span>,<span class="st">&quot;Concept&quot;</span>,<span class="st">&quot;Required&quot;</span>,<span class="st">&quot;Attributes&quot;</span>,<span class="st">&quot;Limit&quot;</span>,<span class="st">&quot;Predicate Type&quot;</span>,<span class="st">&quot;Group&quot;</span>))</span>
+<span id="cb50-43"><a href="#cb50-43" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb50-44"><a href="#cb50-44" aria-hidden="true" tabindex="-1"></a>filteredtable16 <span class="ot">&lt;-</span> table16 <span class="sc">%&gt;%</span> </span>
+<span id="cb50-45"><a href="#cb50-45" aria-hidden="true" tabindex="-1"></a>  <span class="co"># filter(!is.na(Name) &amp; Name != &quot;&quot;) %&gt;%  # Remove rows with NA or empty names</span></span>
+<span id="cb50-46"><a href="#cb50-46" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(Name <span class="sc">%in%</span> <span class="fu">c</span>(<span class="fu">paste0</span>(<span class="st">&quot;B15001_00&quot;</span>, <span class="fu">seq</span>(<span class="dv">01</span>,<span class="dv">09</span>),<span class="st">&quot;E&quot;</span>),<span class="fu">paste0</span>(<span class="st">&quot;B15001_0&quot;</span>, <span class="fu">seq</span>(<span class="dv">10</span>,<span class="dv">83</span>),<span class="st">&quot;E&quot;</span>))) </span>
+<span id="cb50-47"><a href="#cb50-47" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb50-48"><a href="#cb50-48" aria-hidden="true" tabindex="-1"></a><span class="co">#get columnn names 2020</span></span>
+<span id="cb50-49"><a href="#cb50-49" aria-hidden="true" tabindex="-1"></a>url20 <span class="ot">&lt;-</span> <span class="st">&quot;https://api.census.gov/data/2020/acs/acs5/groups/B15001.html&quot;</span></span>
+<span id="cb50-50"><a href="#cb50-50" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb50-51"><a href="#cb50-51" aria-hidden="true" tabindex="-1"></a>webpage20 <span class="ot">&lt;-</span> <span class="fu">read_html</span>(url20)</span>
+<span id="cb50-52"><a href="#cb50-52" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb50-53"><a href="#cb50-53" aria-hidden="true" tabindex="-1"></a>table20 <span class="ot">&lt;-</span> webpage20 <span class="sc">%&gt;%</span></span>
+<span id="cb50-54"><a href="#cb50-54" aria-hidden="true" tabindex="-1"></a>  <span class="fu">html_node</span>(<span class="st">&quot;table&quot;</span>) <span class="sc">%&gt;%</span>  <span class="co"># Adjust the selector if necessary</span></span>
+<span id="cb50-55"><a href="#cb50-55" aria-hidden="true" tabindex="-1"></a>  <span class="fu">html_table</span>() <span class="sc">%&gt;%</span> </span>
+<span id="cb50-56"><a href="#cb50-56" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(<span class="fu">c</span>(<span class="st">&quot;Name&quot;</span>,<span class="st">&quot;Label&quot;</span>,<span class="st">&quot;Concept&quot;</span>,<span class="st">&quot;Required&quot;</span>,<span class="st">&quot;Attributes&quot;</span>,<span class="st">&quot;Limit&quot;</span>,<span class="st">&quot;Predicate Type&quot;</span>,<span class="st">&quot;Group&quot;</span>))</span>
+<span id="cb50-57"><a href="#cb50-57" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb50-58"><a href="#cb50-58" aria-hidden="true" tabindex="-1"></a>filteredtable20 <span class="ot">&lt;-</span> table20 <span class="sc">%&gt;%</span> </span>
+<span id="cb50-59"><a href="#cb50-59" aria-hidden="true" tabindex="-1"></a>  <span class="co"># filter(!is.na(Name) &amp; Name != &quot;&quot;) %&gt;%  # Remove rows with NA or empty names</span></span>
+<span id="cb50-60"><a href="#cb50-60" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(Name <span class="sc">%in%</span> <span class="fu">c</span>(<span class="fu">paste0</span>(<span class="st">&quot;B15001_00&quot;</span>, <span class="fu">seq</span>(<span class="dv">01</span>,<span class="dv">09</span>),<span class="st">&quot;E&quot;</span>),<span class="fu">paste0</span>(<span class="st">&quot;B15001_0&quot;</span>, <span class="fu">seq</span>(<span class="dv">10</span>,<span class="dv">83</span>),<span class="st">&quot;E&quot;</span>))) <span class="sc">%&gt;%</span> </span>
+<span id="cb50-61"><a href="#cb50-61" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">Label =</span> <span class="fu">str_replace_all</span>(Label,<span class="st">&quot;:&quot;</span>,<span class="st">&quot;&quot;</span>))</span></code></pre></div>
+<div class="sourceCode" id="cb51"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb51-1"><a href="#cb51-1" aria-hidden="true" tabindex="-1"></a>filteredtable08<span class="sc">==</span>filteredtable12</span></code></pre></div>
+<pre><code>##       Name Label Concept Required Attributes Limit Predicate Type Group
+##  [1,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [2,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [3,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [4,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [5,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [6,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [7,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [8,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [9,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [10,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [11,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [12,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [13,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [14,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [15,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [16,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [17,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [18,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [19,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [20,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [21,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [22,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [23,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [24,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [25,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [26,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [27,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [28,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [29,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [30,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [31,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [32,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [33,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [34,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [35,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [36,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [37,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [38,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [39,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [40,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [41,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [42,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [43,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [44,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [45,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [46,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [47,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [48,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [49,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [50,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [51,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [52,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [53,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [54,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [55,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [56,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [57,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [58,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [59,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [60,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [61,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [62,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [63,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [64,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [65,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [66,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [67,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [68,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [69,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [70,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [71,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [72,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [73,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [74,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [75,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [76,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [77,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [78,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [79,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [80,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [81,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [82,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [83,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE</code></pre>
+<div class="sourceCode" id="cb53"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb53-1"><a href="#cb53-1" aria-hidden="true" tabindex="-1"></a>filteredtable08<span class="sc">==</span>filteredtable16</span></code></pre></div>
+<pre><code>##       Name Label Concept Required Attributes Limit Predicate Type Group
+##  [1,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [2,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [3,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [4,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [5,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [6,] TRUE FALSE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [7,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [8,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [9,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [10,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [11,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [12,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [13,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [14,] TRUE FALSE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [15,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [16,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [17,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [18,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [19,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [20,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [21,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [22,] TRUE FALSE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [23,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [24,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [25,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [26,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [27,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [28,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [29,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [30,] TRUE FALSE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [31,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [32,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [33,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [34,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [35,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [36,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [37,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [38,] TRUE FALSE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [39,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [40,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [41,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [42,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [43,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [44,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [45,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [46,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [47,] TRUE FALSE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [48,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [49,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [50,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [51,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [52,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [53,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [54,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [55,] TRUE FALSE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [56,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [57,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [58,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [59,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [60,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [61,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [62,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [63,] TRUE FALSE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [64,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [65,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [66,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [67,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [68,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [69,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [70,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [71,] TRUE FALSE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [72,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [73,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [74,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [75,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [76,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [77,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [78,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [79,] TRUE FALSE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [80,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [81,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [82,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [83,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE</code></pre>
+<div class="sourceCode" id="cb55"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb55-1"><a href="#cb55-1" aria-hidden="true" tabindex="-1"></a>filteredtable08<span class="sc">==</span>filteredtable20</span></code></pre></div>
+<pre><code>##       Name Label Concept Required Attributes Limit Predicate Type Group
+##  [1,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [2,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [3,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [4,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [5,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [6,] TRUE FALSE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [7,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [8,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [9,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [10,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [11,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [12,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [13,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [14,] TRUE FALSE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [15,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [16,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [17,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [18,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [19,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [20,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [21,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [22,] TRUE FALSE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [23,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [24,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [25,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [26,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [27,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [28,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [29,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [30,] TRUE FALSE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [31,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [32,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [33,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [34,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [35,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [36,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [37,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [38,] TRUE FALSE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [39,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [40,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [41,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [42,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [43,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [44,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [45,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [46,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [47,] TRUE FALSE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [48,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [49,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [50,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [51,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [52,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [53,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [54,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [55,] TRUE FALSE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [56,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [57,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [58,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [59,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [60,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [61,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [62,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [63,] TRUE FALSE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [64,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [65,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [66,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [67,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [68,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [69,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [70,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [71,] TRUE FALSE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [72,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [73,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [74,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [75,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [76,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [77,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [78,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [79,] TRUE FALSE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [80,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [81,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [82,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [83,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE</code></pre>
+<div class="sourceCode" id="cb57"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb57-1"><a href="#cb57-1" aria-hidden="true" tabindex="-1"></a>filteredtable12<span class="sc">==</span>filteredtable16</span></code></pre></div>
+<pre><code>##       Name Label Concept Required Attributes Limit Predicate Type Group
+##  [1,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [2,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [3,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [4,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [5,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [6,] TRUE FALSE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [7,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [8,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [9,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [10,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [11,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [12,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [13,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [14,] TRUE FALSE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [15,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [16,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [17,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [18,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [19,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [20,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [21,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [22,] TRUE FALSE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [23,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [24,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [25,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [26,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [27,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [28,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [29,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [30,] TRUE FALSE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [31,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [32,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [33,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [34,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [35,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [36,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [37,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [38,] TRUE FALSE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [39,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [40,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [41,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [42,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [43,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [44,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [45,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [46,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [47,] TRUE FALSE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [48,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [49,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [50,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [51,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [52,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [53,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [54,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [55,] TRUE FALSE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [56,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [57,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [58,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [59,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [60,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [61,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [62,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [63,] TRUE FALSE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [64,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [65,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [66,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [67,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [68,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [69,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [70,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [71,] TRUE FALSE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [72,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [73,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [74,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [75,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [76,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [77,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [78,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [79,] TRUE FALSE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [80,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [81,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [82,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [83,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE</code></pre>
+<div class="sourceCode" id="cb59"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb59-1"><a href="#cb59-1" aria-hidden="true" tabindex="-1"></a>filteredtable12<span class="sc">==</span>filteredtable20</span></code></pre></div>
+<pre><code>##       Name Label Concept Required Attributes Limit Predicate Type Group
+##  [1,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [2,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [3,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [4,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [5,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [6,] TRUE FALSE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [7,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [8,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [9,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [10,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [11,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [12,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [13,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [14,] TRUE FALSE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [15,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [16,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [17,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [18,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [19,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [20,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [21,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [22,] TRUE FALSE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [23,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [24,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [25,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [26,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [27,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [28,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [29,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [30,] TRUE FALSE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [31,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [32,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [33,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [34,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [35,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [36,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [37,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [38,] TRUE FALSE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [39,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [40,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [41,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [42,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [43,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [44,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [45,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [46,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [47,] TRUE FALSE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [48,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [49,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [50,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [51,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [52,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [53,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [54,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [55,] TRUE FALSE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [56,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [57,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [58,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [59,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [60,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [61,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [62,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [63,] TRUE FALSE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [64,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [65,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [66,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [67,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [68,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [69,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [70,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [71,] TRUE FALSE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [72,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [73,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [74,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [75,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [76,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [77,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [78,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [79,] TRUE FALSE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [80,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [81,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [82,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [83,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE</code></pre>
+<div class="sourceCode" id="cb61"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb61-1"><a href="#cb61-1" aria-hidden="true" tabindex="-1"></a>filteredtable16<span class="sc">==</span>filteredtable20</span></code></pre></div>
+<pre><code>##       Name Label Concept Required Attributes Limit Predicate Type Group
+##  [1,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [2,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [3,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [4,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [5,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [6,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [7,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [8,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [9,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [10,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [11,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [12,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [13,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [14,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [15,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [16,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [17,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [18,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [19,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [20,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [21,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [22,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [23,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [24,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [25,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [26,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [27,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [28,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [29,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [30,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [31,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [32,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [33,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [34,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [35,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [36,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [37,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [38,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [39,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [40,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [41,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [42,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [43,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [44,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [45,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [46,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [47,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [48,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [49,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [50,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [51,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [52,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [53,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [54,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [55,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [56,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [57,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [58,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [59,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [60,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [61,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [62,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [63,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [64,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [65,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [66,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [67,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [68,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [69,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [70,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [71,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [72,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [73,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [74,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [75,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [76,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [77,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [78,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [79,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [80,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [81,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [82,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [83,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE</code></pre>
+<div class="sourceCode" id="cb63"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb63-1"><a href="#cb63-1" aria-hidden="true" tabindex="-1"></a>filteredtable08 <span class="ot">&lt;-</span> filteredtable08 <span class="sc">%&gt;%</span> </span>
+<span id="cb63-2"><a href="#cb63-2" aria-hidden="true" tabindex="-1"></a>   <span class="fu">mutate</span>(<span class="at">Label =</span> <span class="fu">str_replace_all</span>(Label,<span class="st">&quot;, GED, or alternative&quot;</span>, <span class="st">&#39; (includes equivalency)&#39;</span>))</span>
+<span id="cb63-3"><a href="#cb63-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb63-4"><a href="#cb63-4" aria-hidden="true" tabindex="-1"></a>filteredtable12 <span class="ot">&lt;-</span> filteredtable12 <span class="sc">%&gt;%</span> </span>
+<span id="cb63-5"><a href="#cb63-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">Label =</span> <span class="fu">str_replace_all</span>(Label,<span class="st">&quot;, GED, or alternative&quot;</span>, <span class="st">&#39; (includes equivalency)&#39;</span>))</span></code></pre></div>
+<div class="sourceCode" id="cb64"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb64-1"><a href="#cb64-1" aria-hidden="true" tabindex="-1"></a>filteredtable08<span class="sc">==</span>filteredtable12</span></code></pre></div>
+<pre><code>##       Name Label Concept Required Attributes Limit Predicate Type Group
+##  [1,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [2,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [3,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [4,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [5,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [6,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [7,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [8,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [9,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [10,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [11,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [12,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [13,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [14,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [15,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [16,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [17,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [18,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [19,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [20,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [21,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [22,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [23,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [24,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [25,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [26,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [27,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [28,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [29,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [30,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [31,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [32,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [33,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [34,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [35,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [36,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [37,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [38,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [39,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [40,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [41,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [42,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [43,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [44,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [45,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [46,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [47,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [48,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [49,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [50,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [51,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [52,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [53,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [54,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [55,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [56,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [57,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [58,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [59,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [60,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [61,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [62,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [63,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [64,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [65,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [66,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [67,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [68,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [69,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [70,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [71,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [72,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [73,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [74,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [75,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [76,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [77,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [78,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [79,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [80,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [81,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [82,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [83,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE</code></pre>
+<div class="sourceCode" id="cb66"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb66-1"><a href="#cb66-1" aria-hidden="true" tabindex="-1"></a>filteredtable08<span class="sc">==</span>filteredtable16</span></code></pre></div>
+<pre><code>##       Name Label Concept Required Attributes Limit Predicate Type Group
+##  [1,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [2,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [3,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [4,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [5,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [6,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [7,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [8,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [9,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [10,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [11,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [12,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [13,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [14,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [15,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [16,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [17,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [18,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [19,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [20,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [21,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [22,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [23,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [24,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [25,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [26,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [27,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [28,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [29,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [30,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [31,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [32,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [33,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [34,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [35,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [36,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [37,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [38,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [39,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [40,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [41,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [42,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [43,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [44,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [45,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [46,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [47,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [48,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [49,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [50,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [51,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [52,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [53,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [54,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [55,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [56,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [57,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [58,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [59,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [60,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [61,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [62,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [63,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [64,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [65,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [66,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [67,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [68,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [69,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [70,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [71,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [72,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [73,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [74,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [75,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [76,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [77,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [78,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [79,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [80,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [81,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [82,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [83,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE</code></pre>
+<div class="sourceCode" id="cb68"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb68-1"><a href="#cb68-1" aria-hidden="true" tabindex="-1"></a>filteredtable08<span class="sc">==</span>filteredtable20</span></code></pre></div>
+<pre><code>##       Name Label Concept Required Attributes Limit Predicate Type Group
+##  [1,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [2,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [3,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [4,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [5,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [6,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [7,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [8,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [9,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [10,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [11,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [12,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [13,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [14,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [15,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [16,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [17,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [18,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [19,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [20,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [21,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [22,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [23,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [24,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [25,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [26,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [27,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [28,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [29,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [30,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [31,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [32,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [33,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [34,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [35,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [36,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [37,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [38,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [39,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [40,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [41,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [42,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [43,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [44,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [45,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [46,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [47,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [48,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [49,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [50,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [51,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [52,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [53,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [54,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [55,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [56,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [57,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [58,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [59,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [60,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [61,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [62,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [63,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [64,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [65,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [66,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [67,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [68,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [69,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [70,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [71,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [72,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [73,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [74,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [75,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [76,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [77,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [78,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [79,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [80,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [81,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [82,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [83,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE</code></pre>
+<div class="sourceCode" id="cb70"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb70-1"><a href="#cb70-1" aria-hidden="true" tabindex="-1"></a>filteredtable12<span class="sc">==</span>filteredtable16</span></code></pre></div>
+<pre><code>##       Name Label Concept Required Attributes Limit Predicate Type Group
+##  [1,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [2,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [3,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [4,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [5,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [6,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [7,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [8,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [9,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [10,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [11,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [12,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [13,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [14,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [15,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [16,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [17,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [18,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [19,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [20,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [21,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [22,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [23,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [24,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [25,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [26,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [27,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [28,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [29,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [30,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [31,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [32,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [33,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [34,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [35,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [36,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [37,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [38,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [39,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [40,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [41,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [42,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [43,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [44,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [45,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [46,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [47,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [48,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [49,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [50,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [51,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [52,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [53,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [54,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [55,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [56,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [57,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [58,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [59,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [60,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [61,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [62,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [63,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [64,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [65,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [66,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [67,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [68,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [69,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [70,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [71,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [72,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [73,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [74,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [75,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [76,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [77,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [78,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [79,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [80,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [81,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [82,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [83,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE</code></pre>
+<div class="sourceCode" id="cb72"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb72-1"><a href="#cb72-1" aria-hidden="true" tabindex="-1"></a>filteredtable12<span class="sc">==</span>filteredtable20</span></code></pre></div>
+<pre><code>##       Name Label Concept Required Attributes Limit Predicate Type Group
+##  [1,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [2,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [3,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [4,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [5,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [6,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [7,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [8,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [9,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [10,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [11,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [12,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [13,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [14,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [15,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [16,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [17,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [18,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [19,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [20,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [21,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [22,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [23,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [24,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [25,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [26,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [27,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [28,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [29,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [30,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [31,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [32,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [33,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [34,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [35,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [36,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [37,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [38,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [39,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [40,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [41,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [42,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [43,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [44,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [45,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [46,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [47,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [48,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [49,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [50,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [51,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [52,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [53,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [54,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [55,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [56,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [57,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [58,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [59,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [60,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [61,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [62,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [63,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [64,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [65,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [66,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [67,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [68,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [69,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [70,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [71,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [72,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [73,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [74,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [75,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [76,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [77,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [78,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [79,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [80,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [81,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [82,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [83,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE</code></pre>
+<div class="sourceCode" id="cb74"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb74-1"><a href="#cb74-1" aria-hidden="true" tabindex="-1"></a>filteredtable16<span class="sc">==</span>filteredtable20</span></code></pre></div>
+<pre><code>##       Name Label Concept Required Attributes Limit Predicate Type Group
+##  [1,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [2,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [3,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [4,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [5,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [6,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [7,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [8,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+##  [9,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [10,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [11,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [12,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [13,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [14,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [15,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [16,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [17,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [18,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [19,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [20,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [21,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [22,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [23,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [24,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [25,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [26,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [27,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [28,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [29,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [30,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [31,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [32,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [33,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [34,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [35,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [36,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [37,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [38,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [39,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [40,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [41,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [42,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [43,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [44,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [45,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [46,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [47,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [48,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [49,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [50,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [51,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [52,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [53,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [54,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [55,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [56,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [57,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [58,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [59,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [60,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [61,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [62,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [63,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [64,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [65,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [66,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [67,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [68,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [69,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [70,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [71,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [72,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [73,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [74,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [75,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [76,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [77,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [78,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [79,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [80,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [81,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [82,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE
+## [83,] TRUE  TRUE    TRUE     TRUE       TRUE  TRUE           TRUE  TRUE</code></pre>
+<p>All column names are the same across all 4 election year Educational Attainment data.</p>
+<div class="sourceCode" id="cb76"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb76-1"><a href="#cb76-1" aria-hidden="true" tabindex="-1"></a>ed_attain <span class="ot">&lt;-</span> <span class="fu">rbind</span>(ed_attain2008, ed_attain2012, ed_attain2016, ed_attain2020)</span></code></pre></div>
+<div class="sourceCode" id="cb77"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb77-1"><a href="#cb77-1" aria-hidden="true" tabindex="-1"></a>ed_colnames <span class="ot">&lt;-</span> filteredtable20 <span class="sc">%&gt;%</span> </span>
+<span id="cb77-2"><a href="#cb77-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">Name =</span> <span class="fu">str_replace_all</span>(Name,<span class="st">&quot;E&quot;</span>,<span class="st">&quot;&quot;</span>)) <span class="sc">%&gt;%</span> </span>
+<span id="cb77-3"><a href="#cb77-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(<span class="fu">c</span>(Name, Label))</span>
+<span id="cb77-4"><a href="#cb77-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb77-5"><a href="#cb77-5" aria-hidden="true" tabindex="-1"></a><span class="fu">sort</span>(<span class="fu">unique</span>(ed_colnames<span class="sc">$</span>Name))<span class="sc">==</span><span class="fu">sort</span>(<span class="fu">unique</span>(ed_attain<span class="sc">$</span>variable))</span></code></pre></div>
+<pre><code>##  [1] TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE
+## [16] TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE
+## [31] TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE
+## [46] TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE
+## [61] TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE
+## [76] TRUE TRUE TRUE TRUE TRUE TRUE TRUE TRUE</code></pre>
+<div class="sourceCode" id="cb79"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb79-1"><a href="#cb79-1" aria-hidden="true" tabindex="-1"></a>ed_attain2 <span class="ot">&lt;-</span> <span class="fu">left_join</span>(ed_attain, ed_colnames, <span class="at">by =</span> <span class="fu">c</span>(<span class="st">&quot;variable&quot;</span><span class="ot">=</span><span class="st">&quot;Name&quot;</span>))</span>
+<span id="cb79-2"><a href="#cb79-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb79-3"><a href="#cb79-3" aria-hidden="true" tabindex="-1"></a><span class="fu">glimpse</span>(ed_attain2)</span></code></pre></div>
+<pre><code>## Rows: 958,567
+## Columns: 7
+## $ GEOID    &lt;chr&gt; &quot;01001&quot;, &quot;01001&quot;, &quot;01001&quot;, &quot;01001&quot;, &quot;01001&quot;, &quot;01001&quot;, &quot;01001&quot;~
+## $ NAME     &lt;chr&gt; &quot;Autauga County, Alabama&quot;, &quot;Autauga County, Alabama&quot;, &quot;Autaug~
+## $ variable &lt;chr&gt; &quot;B15001_001&quot;, &quot;B15001_002&quot;, &quot;B15001_003&quot;, &quot;B15001_004&quot;, &quot;B150~
+## $ estimate &lt;dbl&gt; 36493, 17387, 2160, 0, 543, 913, 567, 14, 123, 0, 3157, 64, 3~
+## $ moe      &lt;dbl&gt; 132, 127, 182, 154, 260, 286, 177, 24, 89, 154, 244, 76, 222,~
+## $ year     &lt;dbl&gt; 2008, 2008, 2008, 2008, 2008, 2008, 2008, 2008, 2008, 2008, 2~
+## $ Label    &lt;chr&gt; &quot;Estimate!!Total&quot;, &quot;Estimate!!Total!!Male&quot;, &quot;Estimate!!Total!~</code></pre>
+<div class="sourceCode" id="cb81"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb81-1"><a href="#cb81-1" aria-hidden="true" tabindex="-1"></a><span class="co">#identify empty and NA values</span></span>
+<span id="cb81-2"><a href="#cb81-2" aria-hidden="true" tabindex="-1"></a><span class="fu">colSums</span>(ed_attain2 <span class="sc">==</span> <span class="st">&quot;&quot;</span> <span class="sc">|</span> <span class="fu">is.na</span>(ed_attain2))</span></code></pre></div>
+<pre><code>##    GEOID     NAME variable estimate      moe     year    Label 
+##        0        0        0        0     8584        0        0</code></pre>
+<div class="sourceCode" id="cb83"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb83-1"><a href="#cb83-1" aria-hidden="true" tabindex="-1"></a>ed_attain3 <span class="ot">&lt;-</span> ed_attain2 <span class="sc">%&gt;%</span> </span>
+<span id="cb83-2"><a href="#cb83-2" aria-hidden="true" tabindex="-1"></a>  <span class="co"># mutate(Label2 = Label,</span></span>
+<span id="cb83-3"><a href="#cb83-3" aria-hidden="true" tabindex="-1"></a>  <span class="co">#        Label2 = str_replace(Label2, &quot;Estimate!!Total!!&quot;, &quot;&quot;),</span></span>
+<span id="cb83-4"><a href="#cb83-4" aria-hidden="true" tabindex="-1"></a>  <span class="co">#        #Label2 = str_replace_all(Label2, &quot; &quot;,&quot;_&quot;)</span></span>
+<span id="cb83-5"><a href="#cb83-5" aria-hidden="true" tabindex="-1"></a>  <span class="co">#        ) %&gt;%</span></span>
+<span id="cb83-6"><a href="#cb83-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">separate</span>(Label, <span class="at">into =</span> <span class="fu">c</span>(<span class="st">&quot;type&quot;</span>,<span class="st">&quot;value&quot;</span>,<span class="st">&quot;gender&quot;</span>, <span class="st">&quot;age_group&quot;</span>, <span class="st">&quot;education&quot;</span>), <span class="at">sep =</span> <span class="st">&quot;!!&quot;</span>)</span></code></pre></div>
+<pre><code>## Warning: Expected 5 pieces. Missing pieces filled with `NA` in 150137 rows [1, 2, 3, 11,
+## 19, 27, 35, 43, 44, 52, 60, 68, 76, 84, 85, 86, 94, 102, 110, 118, ...].</code></pre>
+<div class="sourceCode" id="cb85"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb85-1"><a href="#cb85-1" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(ed_attain3, <span class="dv">10</span>)</span></code></pre></div>
+<pre><code>## # A tibble: 10 x 11
+##    GEOID NAME         variable estimate   moe  year type  value gender age_group
+##    &lt;chr&gt; &lt;chr&gt;        &lt;chr&gt;       &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;chr&gt; &lt;chr&gt; &lt;chr&gt;  &lt;chr&gt;    
+##  1 01001 Autauga Cou~ B15001_~    36493   132  2008 Esti~ Total &lt;NA&gt;   &lt;NA&gt;     
+##  2 01001 Autauga Cou~ B15001_~    17387   127  2008 Esti~ Total Male   &lt;NA&gt;     
+##  3 01001 Autauga Cou~ B15001_~     2160   182  2008 Esti~ Total Male   18 to 24~
+##  4 01001 Autauga Cou~ B15001_~        0   154  2008 Esti~ Total Male   18 to 24~
+##  5 01001 Autauga Cou~ B15001_~      543   260  2008 Esti~ Total Male   18 to 24~
+##  6 01001 Autauga Cou~ B15001_~      913   286  2008 Esti~ Total Male   18 to 24~
+##  7 01001 Autauga Cou~ B15001_~      567   177  2008 Esti~ Total Male   18 to 24~
+##  8 01001 Autauga Cou~ B15001_~       14    24  2008 Esti~ Total Male   18 to 24~
+##  9 01001 Autauga Cou~ B15001_~      123    89  2008 Esti~ Total Male   18 to 24~
+## 10 01001 Autauga Cou~ B15001_~        0   154  2008 Esti~ Total Male   18 to 24~
+## # i 1 more variable: education &lt;chr&gt;</code></pre>
+<div class="sourceCode" id="cb87"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb87-1"><a href="#cb87-1" aria-hidden="true" tabindex="-1"></a><span class="co">#identify empty and NA values</span></span>
+<span id="cb87-2"><a href="#cb87-2" aria-hidden="true" tabindex="-1"></a><span class="fu">colSums</span>(ed_attain3 <span class="sc">==</span> <span class="st">&quot;&quot;</span> <span class="sc">|</span> <span class="fu">is.na</span>(ed_attain3))</span></code></pre></div>
+<pre><code>##     GEOID      NAME  variable  estimate       moe      year      type     value 
+##         0         0         0         0      8584         0         0         0 
+##    gender age_group education 
+##     11549     34647    150137</code></pre>
 <p>Other references and notes</p>
 <p>Esri prompt<br />
 Because voting is voluntary in the United States, the level of voter participation (referred to as “voter turnout”) has a significant impact on the election results and resulting public policy.<br />
 Modeling voter turnout, and understanding where low turnout is prevalent, can inform outreach efforts to increase voter participation. With the ultimate goal of predicting voter turnout, in this exercise, you will focus on performing various data engineering tasks to prepare election result data for predictive analysis.</p>
 <p>Voter turnout<br />
 <a href="https://electionlab.mit.edu/research/voter-turnout" class="uri">https://electionlab.mit.edu/research/voter-turnout</a><br />
-<a href="https://election.lab.ufl.edu/" class="uri">https://election.lab.ufl.edu/</a> (VEP- Voting Eligible Population) data by state and election</p>
+<a href="https://election.lab.ufl.edu/" class="uri">https://election.lab.ufl.edu/</a> (VEP- Voting Eligible Population) data by state and election, by county not available</p>
 <p>Redistricting<br />
 <a href="https://www.propublica.org/article/redistricting-a-devils-dictionary" class="uri">https://www.propublica.org/article/redistricting-a-devils-dictionary</a> (definitions)</p>
 <p>Class bias<br />
