@@ -326,6 +326,7 @@ ed_attain2020 <- get_acs(
   mutate(year=2020)
 
 ```
+#### Get column names
 
 ```{r}
 #check column names
@@ -392,7 +393,7 @@ filteredtable20 <- table20 %>%
 
 ```
 
-```{r, results='hide'}
+```{r include=FALSE, results='hide'}
 #Are column names the same across all ACS data?
 
 filteredtable08==filteredtable12
@@ -417,7 +418,7 @@ filteredtable12 <- filteredtable12 %>%
   mutate(Label = str_replace_all(Label,", GED, or alternative", ' (includes equivalency)'))
 ```
 
-```{r, results='hide'}
+```{r include=FALSE, results='hide'}
 #recheck 
 #Are column names the same across all ACS data?
 
@@ -438,6 +439,7 @@ filteredtable16==filteredtable20
 
 All column names are the same across all 4 election year Educational Attainment data.
 
+#### Combine and merge education data
 ```{r}
 ed_attain <- rbind(ed_attain2008, ed_attain2012, ed_attain2016, ed_attain2020)
 
@@ -459,6 +461,7 @@ glimpse(ed_attain2)
 #identify empty and NA values
 colSums(ed_attain2 == "" | is.na(ed_attain2))
 ```
+#### Clean and reshape data
 
 ```{r}
 ed_attain3 <- ed_attain2 %>% 
@@ -486,9 +489,16 @@ ed_attain3_na <- ed_attain3 %>%
 ed_attain3_na %>% 
   count(variable, Label)
 
-unique(ed_attain3_na$variable)
+unique(ed_attain3_na$variable) 
+
+# need to remove these from the whole data set and save as another
+# reshape both data sets
+# merge back together
 ```
 
+```{r}
+
+```
   
   
 Other references and notes  

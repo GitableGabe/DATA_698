@@ -798,6 +798,8 @@ div.tocify {
 <span id="cb53-39"><a href="#cb53-39" aria-hidden="true" tabindex="-1"></a>  <span class="at">survey =</span> <span class="st">&quot;acs5&quot;</span>,</span>
 <span id="cb53-40"><a href="#cb53-40" aria-hidden="true" tabindex="-1"></a>  <span class="at">cache_table =</span> <span class="cn">TRUE</span>) <span class="sc">%&gt;%</span> </span>
 <span id="cb53-41"><a href="#cb53-41" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">year=</span><span class="dv">2020</span>)</span></code></pre></div>
+<div id="get-column-names" class="section level4">
+<h4>Get column names</h4>
 <div class="sourceCode" id="cb54"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb54-1"><a href="#cb54-1" aria-hidden="true" tabindex="-1"></a><span class="co">#check column names</span></span>
 <span id="cb54-2"><a href="#cb54-2" aria-hidden="true" tabindex="-1"></a><span class="co">#get column names 2008</span></span>
 <span id="cb54-3"><a href="#cb54-3" aria-hidden="true" tabindex="-1"></a>url08 <span class="ot">&lt;-</span> <span class="st">&quot;https://api.census.gov/data/2008/acs/acs3/groups/B15001.html&quot;</span></span>
@@ -895,6 +897,9 @@ div.tocify {
 <span id="cb57-15"><a href="#cb57-15" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb57-16"><a href="#cb57-16" aria-hidden="true" tabindex="-1"></a><span class="co">#yes, they are now so we can just use the column names from the latest ACS</span></span></code></pre></div>
 <p>All column names are the same across all 4 election year Educational Attainment data.</p>
+</div>
+<div id="combine-and-merge-education-data" class="section level4">
+<h4>Combine and merge education data</h4>
 <div class="sourceCode" id="cb58"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb58-1"><a href="#cb58-1" aria-hidden="true" tabindex="-1"></a>ed_attain <span class="ot">&lt;-</span> <span class="fu">rbind</span>(ed_attain2008, ed_attain2012, ed_attain2016, ed_attain2020)</span></code></pre></div>
 <div class="sourceCode" id="cb59"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb59-1"><a href="#cb59-1" aria-hidden="true" tabindex="-1"></a>ed_colnames <span class="ot">&lt;-</span> filteredtable20 <span class="sc">%&gt;%</span> </span>
 <span id="cb59-2"><a href="#cb59-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">Name =</span> <span class="fu">str_replace_all</span>(Name,<span class="st">&quot;E&quot;</span>,<span class="st">&quot;&quot;</span>)) <span class="sc">%&gt;%</span> </span>
@@ -923,35 +928,63 @@ div.tocify {
 <span id="cb63-2"><a href="#cb63-2" aria-hidden="true" tabindex="-1"></a><span class="fu">colSums</span>(ed_attain2 <span class="sc">==</span> <span class="st">&quot;&quot;</span> <span class="sc">|</span> <span class="fu">is.na</span>(ed_attain2))</span></code></pre></div>
 <pre><code>##    GEOID     NAME variable estimate      moe     year    Label 
 ##        0        0        0        0     8584        0        0</code></pre>
+</div>
+<div id="clean-and-reshape-data" class="section level4">
+<h4>Clean and reshape data</h4>
 <div class="sourceCode" id="cb65"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb65-1"><a href="#cb65-1" aria-hidden="true" tabindex="-1"></a>ed_attain3 <span class="ot">&lt;-</span> ed_attain2 <span class="sc">%&gt;%</span> </span>
-<span id="cb65-2"><a href="#cb65-2" aria-hidden="true" tabindex="-1"></a>  <span class="co"># mutate(Label2 = Label,</span></span>
-<span id="cb65-3"><a href="#cb65-3" aria-hidden="true" tabindex="-1"></a>  <span class="co">#        Label2 = str_replace(Label2, &quot;Estimate!!Total!!&quot;, &quot;&quot;),</span></span>
-<span id="cb65-4"><a href="#cb65-4" aria-hidden="true" tabindex="-1"></a>  <span class="co">#        #Label2 = str_replace_all(Label2, &quot; &quot;,&quot;_&quot;)</span></span>
-<span id="cb65-5"><a href="#cb65-5" aria-hidden="true" tabindex="-1"></a>  <span class="co">#        ) %&gt;%</span></span>
-<span id="cb65-6"><a href="#cb65-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">separate</span>(Label, <span class="at">into =</span> <span class="fu">c</span>(<span class="st">&quot;type&quot;</span>,<span class="st">&quot;value&quot;</span>,<span class="st">&quot;gender&quot;</span>, <span class="st">&quot;age_group&quot;</span>, <span class="st">&quot;education&quot;</span>), <span class="at">sep =</span> <span class="st">&quot;!!&quot;</span>)</span></code></pre></div>
+<span id="cb65-2"><a href="#cb65-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">Label2 =</span> Label,</span>
+<span id="cb65-3"><a href="#cb65-3" aria-hidden="true" tabindex="-1"></a>         <span class="co">#Label2 = str_replace(Label2, &quot;Estimate!!Total!!&quot;, &quot;&quot;),</span></span>
+<span id="cb65-4"><a href="#cb65-4" aria-hidden="true" tabindex="-1"></a>         <span class="co">#Label2 = str_replace_all(Label2, &quot; &quot;,&quot;_&quot;)</span></span>
+<span id="cb65-5"><a href="#cb65-5" aria-hidden="true" tabindex="-1"></a>         ) <span class="sc">%&gt;%</span></span>
+<span id="cb65-6"><a href="#cb65-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">separate</span>(Label2, <span class="at">into =</span> <span class="fu">c</span>(<span class="st">&quot;type&quot;</span>,<span class="st">&quot;value&quot;</span>,<span class="st">&quot;gender&quot;</span>, <span class="st">&quot;age_group&quot;</span>, <span class="st">&quot;education&quot;</span>), <span class="at">sep =</span> <span class="st">&quot;!!&quot;</span>)</span></code></pre></div>
 <pre><code>## Warning: Expected 5 pieces. Missing pieces filled with `NA` in 150137 rows [1, 2, 3, 11,
 ## 19, 27, 35, 43, 44, 52, 60, 68, 76, 84, 85, 86, 94, 102, 110, 118, ...].</code></pre>
 <div class="sourceCode" id="cb67"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb67-1"><a href="#cb67-1" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(ed_attain3, <span class="dv">10</span>)</span></code></pre></div>
-<pre><code>## # A tibble: 10 x 11
-##    GEOID NAME         variable estimate   moe  year type  value gender age_group
-##    &lt;chr&gt; &lt;chr&gt;        &lt;chr&gt;       &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;chr&gt; &lt;chr&gt; &lt;chr&gt;  &lt;chr&gt;    
-##  1 01001 Autauga Cou~ B15001_~    36493   132  2008 Esti~ Total &lt;NA&gt;   &lt;NA&gt;     
-##  2 01001 Autauga Cou~ B15001_~    17387   127  2008 Esti~ Total Male   &lt;NA&gt;     
-##  3 01001 Autauga Cou~ B15001_~     2160   182  2008 Esti~ Total Male   18 to 24~
-##  4 01001 Autauga Cou~ B15001_~        0   154  2008 Esti~ Total Male   18 to 24~
-##  5 01001 Autauga Cou~ B15001_~      543   260  2008 Esti~ Total Male   18 to 24~
-##  6 01001 Autauga Cou~ B15001_~      913   286  2008 Esti~ Total Male   18 to 24~
-##  7 01001 Autauga Cou~ B15001_~      567   177  2008 Esti~ Total Male   18 to 24~
-##  8 01001 Autauga Cou~ B15001_~       14    24  2008 Esti~ Total Male   18 to 24~
-##  9 01001 Autauga Cou~ B15001_~      123    89  2008 Esti~ Total Male   18 to 24~
-## 10 01001 Autauga Cou~ B15001_~        0   154  2008 Esti~ Total Male   18 to 24~
+<pre><code>## # A tibble: 10 x 12
+##    GEOID NAME   variable estimate   moe  year Label type  value gender age_group
+##    &lt;chr&gt; &lt;chr&gt;  &lt;chr&gt;       &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;chr&gt; &lt;chr&gt; &lt;chr&gt; &lt;chr&gt;  &lt;chr&gt;    
+##  1 01001 Autau~ B15001_~    36493   132  2008 Esti~ Esti~ Total &lt;NA&gt;   &lt;NA&gt;     
+##  2 01001 Autau~ B15001_~    17387   127  2008 Esti~ Esti~ Total Male   &lt;NA&gt;     
+##  3 01001 Autau~ B15001_~     2160   182  2008 Esti~ Esti~ Total Male   18 to 24~
+##  4 01001 Autau~ B15001_~        0   154  2008 Esti~ Esti~ Total Male   18 to 24~
+##  5 01001 Autau~ B15001_~      543   260  2008 Esti~ Esti~ Total Male   18 to 24~
+##  6 01001 Autau~ B15001_~      913   286  2008 Esti~ Esti~ Total Male   18 to 24~
+##  7 01001 Autau~ B15001_~      567   177  2008 Esti~ Esti~ Total Male   18 to 24~
+##  8 01001 Autau~ B15001_~       14    24  2008 Esti~ Esti~ Total Male   18 to 24~
+##  9 01001 Autau~ B15001_~      123    89  2008 Esti~ Esti~ Total Male   18 to 24~
+## 10 01001 Autau~ B15001_~        0   154  2008 Esti~ Esti~ Total Male   18 to 24~
 ## # i 1 more variable: education &lt;chr&gt;</code></pre>
 <div class="sourceCode" id="cb69"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb69-1"><a href="#cb69-1" aria-hidden="true" tabindex="-1"></a><span class="co">#identify empty and NA values</span></span>
 <span id="cb69-2"><a href="#cb69-2" aria-hidden="true" tabindex="-1"></a><span class="fu">colSums</span>(ed_attain3 <span class="sc">==</span> <span class="st">&quot;&quot;</span> <span class="sc">|</span> <span class="fu">is.na</span>(ed_attain3))</span></code></pre></div>
-<pre><code>##     GEOID      NAME  variable  estimate       moe      year      type     value 
+<pre><code>##     GEOID      NAME  variable  estimate       moe      year     Label      type 
 ##         0         0         0         0      8584         0         0         0 
-##    gender age_group education 
-##     11549     34647    150137</code></pre>
+##     value    gender age_group education 
+##         0     11549     34647    150137</code></pre>
+<div class="sourceCode" id="cb71"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb71-1"><a href="#cb71-1" aria-hidden="true" tabindex="-1"></a>ed_attain3_na <span class="ot">&lt;-</span> ed_attain3 <span class="sc">%&gt;%</span> </span>
+<span id="cb71-2"><a href="#cb71-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="fu">is.na</span>(gender) <span class="sc">|</span> <span class="fu">is.na</span>(age_group) <span class="sc">|</span> <span class="fu">is.na</span>(education))</span>
+<span id="cb71-3"><a href="#cb71-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb71-4"><a href="#cb71-4" aria-hidden="true" tabindex="-1"></a>ed_attain3_na <span class="sc">%&gt;%</span> </span>
+<span id="cb71-5"><a href="#cb71-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">count</span>(variable, Label)</span></code></pre></div>
+<pre><code>## # A tibble: 13 x 3
+##    variable   Label                                          n
+##    &lt;chr&gt;      &lt;chr&gt;                                      &lt;int&gt;
+##  1 B15001_001 Estimate!!Total                            11549
+##  2 B15001_002 Estimate!!Total!!Male                      11549
+##  3 B15001_003 Estimate!!Total!!Male!!18 to 24 years      11549
+##  4 B15001_011 Estimate!!Total!!Male!!25 to 34 years      11549
+##  5 B15001_019 Estimate!!Total!!Male!!35 to 44 years      11549
+##  6 B15001_027 Estimate!!Total!!Male!!45 to 64 years      11549
+##  7 B15001_035 Estimate!!Total!!Male!!65 years and over   11549
+##  8 B15001_043 Estimate!!Total!!Female                    11549
+##  9 B15001_044 Estimate!!Total!!Female!!18 to 24 years    11549
+## 10 B15001_052 Estimate!!Total!!Female!!25 to 34 years    11549
+## 11 B15001_060 Estimate!!Total!!Female!!35 to 44 years    11549
+## 12 B15001_068 Estimate!!Total!!Female!!45 to 64 years    11549
+## 13 B15001_076 Estimate!!Total!!Female!!65 years and over 11549</code></pre>
+<div class="sourceCode" id="cb73"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb73-1"><a href="#cb73-1" aria-hidden="true" tabindex="-1"></a><span class="fu">unique</span>(ed_attain3_na<span class="sc">$</span>variable)</span></code></pre></div>
+<pre><code>##  [1] &quot;B15001_001&quot; &quot;B15001_002&quot; &quot;B15001_003&quot; &quot;B15001_011&quot; &quot;B15001_019&quot;
+##  [6] &quot;B15001_027&quot; &quot;B15001_035&quot; &quot;B15001_043&quot; &quot;B15001_044&quot; &quot;B15001_052&quot;
+## [11] &quot;B15001_060&quot; &quot;B15001_068&quot; &quot;B15001_076&quot;</code></pre>
 <p>Other references and notes</p>
 <p>Esri prompt<br />
 Because voting is voluntary in the United States, the level of voter participation (referred to as “voter turnout”) has a significant impact on the election results and resulting public policy.<br />
@@ -969,6 +1002,7 @@ Modeling voter turnout, and understanding where low turnout is prevalent, can in
 <!------- Below is for removing excessive space in Rmarkdown | HTML formatting -------->
 <div class="tocify-extend-page" data-unique="tocify-extend-page" style="height: 0;">
 
+</div>
 </div>
 </div>
 </div>
