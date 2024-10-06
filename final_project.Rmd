@@ -453,12 +453,7 @@ summary(voting_info_final_pivot$totalvotes_2020) #right skew
 ```
 
 ```{r}
-# Create a histogram
-ggplot(data = voting_info_final, aes(x = voter_turnout_majparty)) +
-  geom_density(fill = "blue", alpha = 0.5, color = "darkblue") +
-  facet_wrap(~year)+
-  labs(title = "Distribution of Total Votes by Election year", x = "Total Votes", y = "Frequency") +
-  theme_minimal()
+
 ```
 
 <!-- ### Educational Attainment data -->
