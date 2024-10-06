@@ -1,7 +1,7 @@
 ---
-title: "Untitled"
+title: 'DATA 698: Masters Research Project'
 author: "Gabriella Martinez"
-date: ""
+date: "Last edited `r format(Sys.time(), '%B %d, %Y')`"
 output:
       html_document:
         toc: yes
@@ -10,6 +10,11 @@ output:
         highlight: kate
         font-family: "Arial"
         code_folding: show
+      html_notebook: default
+      pdf_document:
+        latex_engine: xelatex
+      geometry: left=0.5cm,right=0.5cm,top=1cm,bottom=2cm
+urlcolor: blue
 ---
 
 
