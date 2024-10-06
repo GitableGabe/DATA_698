@@ -24,7 +24,7 @@ urlcolor: blue
 library(tidyverse)
 library(tidycensus)
 library(rvest)
-
+library(ggplot2)
 ```
 
 ```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide'}
@@ -287,8 +287,6 @@ voting_info_final <- voting_info_df %>%
                                           winning_party == "Republican Party" ~ round(((votes_gop - votes_dem) / totalvotes)*100,3), #votes_gop > votes_dem
                                           )
          ) 
-
-glimpse(voting_info_final)
 ```
 
 ```{r}
@@ -314,11 +312,10 @@ summary(voting_info_final$voter_turnout)
 ```
 
 ```{r}
-glimpse(voting_info_final)
+dim(voting_info_final)
 ```
 
-
-# Transforming data for modeling
+#### Transforming data for modeling
 
 pivot the table so that each county has one record and so that data for each election is in separate columns.
 
@@ -331,18 +328,12 @@ voting_info_final_pivot <- voting_info_final %>%
                     winning_party)
   )
 
-glimpse(voting_info_final_pivot)
+dim(voting_info_final_pivot)
 
 ```
-
 
 ```{r}
 colSums(is.na(voting_info_final_pivot))
-```
-
-
-```{r}
-voting_info_final_pivot[rowSums(is.na(voting_info_final_pivot)) > 0, ]
 ```
 
 ```{r}
@@ -378,9 +369,6 @@ voting_info_final_pivot <- voting_info_final %>%
   separate(col= geoname, into=c("county","state"), sep = ",") %>% 
   mutate(county = trimws(county, which="both"),
          state = trimws(state, which = "both"))
-
-glimpse(voting_info_final_pivot)
-
 # colSums(voting_info_final_pivot == ""|is.na(voting_info_final_pivot))
 # 
 # voting_info_final_pivot %>% 
@@ -394,19 +382,84 @@ voting_info_final_pivot_na <- voting_info_final_pivot %>%
 voting_info_final_pivot_na
 ```
 
+# Exploratory Data Analysis
 
 
+```{r}
+glimpse(voting_info_final_pivot)
+```
 
 
+After cleaning, our dataset includes election data by county for 49 states and the District of Columbia for elections since 2008.
+
+```{r}
+voting_info_final_pivot %>% 
+  group_by(state) %>% 
+  summarise(count = n()) %>% 
+  arrange(desc(count))
+```
+
+```{r}
+voting_info_final %>%
+  group_by(year, winning_party) %>%
+  summarise(count = sum(totalvotes)) %>%
+  ggplot(aes(x = winning_party, y = count, fill = winning_party)) +  # Map fill to winning_party
+  scale_fill_manual(values = c("darkblue","red2"))+
+  geom_col(width = 0.5) +  #adjust the width as needed
+  facet_wrap(~year)+
+  theme_bw() + # Setting background as blank
+  theme(plot.title = element_text(hjust = 0.0,size = 10), #, "Arial"
+        #c(bottom,left,top,right)
+        plot.margin=margin(0.25,0.05,0,0.25, "cm"),#plot.margin = margin(0.25,0.25,0,0.25, "cm"),
+        legend.background=element_blank(),
+        legend.position = "bottom",#legend.position = c(0.11, 0.1), #puts legend inside the plot
+        legend.margin=margin(0,0,0,0,"cm"),
+        # legend.text = element_text(size = 6), #, family = "Arial"
+        legend.key.size = unit(8, "mm"), #changes the size of the legend symbol
+        legend.title = element_blank(), #removes legend title
+        legend.spacing.x = unit(.25, 'cm'),
+        axis.title = element_blank()
+        # axis.title.x=element_blank(),
+        # axis.title.y = element_text(size = 7), #, family = "Arial"
+        # axis.text = element_text(size = 7) #, family = "Arial"
+  )
+```
 
 
+```{r}
+# Create a histogram
+ggplot(data = voting_info_final, aes(x = totalvotes)) +
+  geom_density(fill = "#222222", alpha = 0.7, color = "darkgray") +
+  facet_wrap(~year)+
+  labs(title = "Distribution of Total Votes by Election year", x = "Total Votes", y = "Frequency") +
+  theme_minimal()
+```
 
 
+```{r}
+summary(voting_info_final_pivot$totalvotes_2008) #right skew
+```
 
+```{r}
+summary(voting_info_final_pivot$totalvotes_2012) #right skew
+```
 
+```{r}
+summary(voting_info_final_pivot$totalvotes_2016) #right skew
+```
 
+```{r}
+summary(voting_info_final_pivot$totalvotes_2020) #right skew
+```
 
-
+```{r}
+# Create a histogram
+ggplot(data = voting_info_final, aes(x = voter_turnout_majparty)) +
+  geom_density(fill = "blue", alpha = 0.5, color = "darkblue") +
+  facet_wrap(~year)+
+  labs(title = "Distribution of Total Votes by Election year", x = "Total Votes", y = "Frequency") +
+  theme_minimal()
+```
 
 <!-- ### Educational Attainment data -->
 
