@@ -25,6 +25,10 @@ library(tidyverse)
 library(tidycensus)
 library(rvest)
 library(ggplot2)
+library(reshape2)
+library(corrplot)
+library(car)
+library(Hmisc)
 ```
 
 ```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide'}
@@ -390,6 +394,12 @@ glimpse(voting_info_final_pivot)
 ```
 
 
+```{r}
+#identify empty and NA values
+colSums(voting_info_final_pivot == "" | is.na(voting_info_final_pivot))
+```
+
+
 After cleaning, our dataset includes election data by county for 49 states and the District of Columbia for elections since 2008.
 
 ```{r}
@@ -398,6 +408,29 @@ voting_info_final_pivot %>%
   summarise(count = n()) %>% 
   arrange(desc(count))
 ```
+## Sumarry Statistics
+
+```{r}
+voting_info_final_pivot %>% 
+  # keep(is.numeric) %>% 
+  Hmisc::describe()
+```
+
+
+## Distribution of variables
+
+```{r}
+# Histograms
+voting_info_final_pivot %>%
+  keep(is.numeric) %>% 
+  gather() %>%
+  ggplot(aes(value)) +
+    facet_wrap(~ key, scales = "free") +
+    geom_density(fill = "#222222", alpha = 0.5, color = "darkgray") +
+    geom_histogram(aes(y=..density..), alpha=0.5, fill = "#222222", color="darkgray", position="identity") + 
+  theme(axis.title = element_blank())
+```
+
 
 ```{r}
 voting_info_final %>%
@@ -407,6 +440,7 @@ voting_info_final %>%
   scale_fill_manual(values = c("darkblue","red2"))+
   geom_col(width = 0.5) +  #adjust the width as needed
   facet_wrap(~year)+
+  labs(title = "Total Votes by Political Party")+
   theme_bw() + # Setting background as blank
   theme(plot.title = element_text(hjust = 0.0,size = 10), #, "Arial"
         #c(bottom,left,top,right)
@@ -426,33 +460,49 @@ voting_info_final %>%
 ```
 
 
+## Detect Multicollinearity Using Correlation Matrix
+
+
 ```{r}
-# Create a histogram
-ggplot(data = voting_info_final, aes(x = totalvotes)) +
-  geom_density(fill = "#222222", alpha = 0.7, color = "darkgray") +
-  facet_wrap(~year)+
-  labs(title = "Distribution of Total Votes by Election year", x = "Total Votes", y = "Frequency") +
-  theme_minimal()
+
+df <- voting_info_final_pivot %>% 
+  select(-c(FIPS, county, state, starts_with("winning"))) %>% 
+  keep(is.numeric)
+
+cor_matrix <- cor(df)
+
+# Create a heatmap for the correlation matrix
+# Visualize correlation between variables
+corrplot.mixed(cor(df %>% keep(is.numeric)), tl.col = 'black', tl.pos = 'lt', upper = "number", lower="shade", shade.col=NA, tl.srt=90 )
+
 ```
 
+## Detect Multicollinearity Using VIF
+
+The Variance Inflation Factor (VIF) helps quantify how much multicollinearity exists by showing how much the variance of a coefficient is inflated due to linear dependence with other predictors.
+
+VIF Interpretation:  
+VIF = 1: No correlation between the predictor and other variables.  
+VIF between 1 and 5: Moderate correlation.  
+VIF > 5 (or sometimes > 10): High multicollinearity, and you may want to consider removing this variable.  
 
 ```{r}
-summary(voting_info_final_pivot$totalvotes_2008) #right skew
+vif_data <- vif(lm(totalvotes_2020 ~ ., data=df))  # Fit a linear model and calculate VIF
+print(vif_data)
 ```
 
 ```{r}
-summary(voting_info_final_pivot$totalvotes_2012) #right skew
-```
+# Convert VIF values to a dataframe for visualization
+vif_df <- as.data.frame(vif_data)
+vif_df$variables <- rownames(vif_df)
 
-```{r}
-summary(voting_info_final_pivot$totalvotes_2016) #right skew
-```
+# Visualize using ggplot2
+ggplot(vif_df, aes(x=reorder(variables, V1), y=V1)) + 
+  geom_bar(stat="identity", fill="steelblue") + 
+  coord_flip() + 
+  theme_minimal() +
+  labs(title="VIF of Variables", x="Variables", y="VIF")
 
-```{r}
-summary(voting_info_final_pivot$totalvotes_2020) #right skew
-```
-
-```{r}
 
 ```
 
