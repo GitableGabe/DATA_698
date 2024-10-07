@@ -551,20 +551,21 @@ varImpPlot(rf_model)
 ImpData <- as.data.frame(importance(rf_model))
 ImpData$Var.Names <- row.names(ImpData)
 
-ImpData <- ImpData %>% 
-  arrange(desc(MeanDecreaseAccuracy))
+#reorder variables based on MeanDecreaseAccuracy to display in descending order
+ImpData$Var.Names <- factor(ImpData$Var.Names, levels = ImpData$Var.Names[order(ImpData$MeanDecreaseAccuracy, decreasing = FALSE)])
 
 ggplot(ImpData, aes(x=Var.Names, y=MeanDecreaseAccuracy)) +
-  geom_segment( aes(x=Var.Names, xend=Var.Names, y=0, yend=MeanDecreaseAccuracy), color="skyblue") +
-  #geom_point(aes(size = IncNodePurity),  color="steelblue", alpha=1) +
+  geom_segment(aes(x=Var.Names, xend=Var.Names, y=0, yend=MeanDecreaseAccuracy), color="skyblue") +
+  #geom_point(aes(size = IncNodePurity), color="steelblue", alpha=1) +
   theme_light() +
   coord_flip() +
   theme(
-    legend.position="bottom",
+    legend.position = "bottom",
     panel.grid.major.y = element_blank(),
     panel.border = element_blank(),
     axis.ticks.y = element_blank()
   )
+
 ```
 
 
