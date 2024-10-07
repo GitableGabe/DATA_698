@@ -298,8 +298,6 @@ voting_info_final <- voting_info_df %>%
                                    votes_other > votes_dem & votes_other > votes_gop ~ 2),
          ) 
 
-
-glimpse(voting_info_final)
 ```
 
 ```{r}
@@ -569,10 +567,6 @@ ggplot(ImpData, aes(x=Var.Names, y=MeanDecreaseAccuracy)) +
   )
 ```
 
-
-
-
-Regression Random Forest with 500 trees was trained, trying 10 random variables at each split. Our model explains 89.66% of the variance, which means it is performing well.The Mean Squared Error on the test set is around 65.5 million, meaning the predictions on average are off by the square root of this value (about 8,090) when predicting the number of votes.
 
 <!-- ### Educational Attainment data -->
 
