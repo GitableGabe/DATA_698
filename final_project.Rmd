@@ -29,6 +29,8 @@ library(reshape2)
 library(corrplot)
 library(car)
 library(Hmisc)
+library(randomForest)
+library(caret)
 ```
 
 ```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide'}
@@ -289,8 +291,15 @@ voting_info_final <- voting_info_df %>%
                                    votes_other > votes_dem & votes_other > votes_gop ~ "Other Party"),
          pct_margin_of_victory = case_when(winning_party == "Democratic Party" ~ round(((votes_dem - votes_gop) / totalvotes)*100,3), #votes_dem > votes_gop
                                           winning_party == "Republican Party" ~ round(((votes_gop - votes_dem) / totalvotes)*100,3), #votes_gop > votes_dem
-                                          )
+                                          ),
+         # create binary outcome version of the variable for model use
+         winning_party_binary = case_when(votes_dem > votes_gop & votes_dem > votes_other ~ 0,
+                                   votes_gop > votes_dem & votes_gop > votes_other ~ 1,
+                                   votes_other > votes_dem & votes_other > votes_gop ~ 2),
          ) 
+
+
+glimpse(voting_info_final)
 ```
 
 ```{r}
@@ -321,15 +330,15 @@ dim(voting_info_final)
 
 #### Transforming data for modeling
 
-pivot the table so that each county has one record and so that data for each election is in separate columns.
+Pivot the table so that each county has one record and so that data for each election is in separate columns.
 
 ```{r}
 voting_info_final_pivot <- voting_info_final %>%
   pivot_wider(
     id_cols = c(FIPS, geoname),
     names_from = year,
-    values_from = c(totalvotes, cvap_est, voter_turnout, voter_turnout_dem, voter_turnout_gop, pctdiff_dem_vs_gop, rawdiff_dem_vs_gop, #pct_margin_of_victory, 
-                    winning_party)
+    values_from = c(totalvotes, cvap_est, voter_turnout, voter_turnout_dem, voter_turnout_gop, pctdiff_dem_vs_gop, rawdiff_dem_vs_gop, 
+                    winning_party,winning_party_binary)
   )
 
 dim(voting_info_final_pivot)
@@ -341,7 +350,6 @@ colSums(is.na(voting_info_final_pivot))
 ```
 
 ```{r}
-
 voting_info_final_pivot_na <- voting_info_final_pivot %>%
   filter(if_any(where(is.numeric), is.na))
 
@@ -367,8 +375,8 @@ voting_info_final_pivot <- voting_info_final %>%
   pivot_wider(
     id_cols = c(FIPS, geoname),
     names_from = year,
-    values_from = c(totalvotes, cvap_est, voter_turnout, voter_turnout_dem, voter_turnout_gop, pctdiff_dem_vs_gop, rawdiff_dem_vs_gop, #pct_margin_of_victory, 
-                    winning_party)
+    values_from = c(totalvotes, cvap_est, voter_turnout, voter_turnout_dem, voter_turnout_gop, pctdiff_dem_vs_gop, rawdiff_dem_vs_gop, 
+                    winning_party, winning_party_binary)
   ) %>% 
   separate(col= geoname, into=c("county","state"), sep = ",") %>% 
   mutate(county = trimws(county, which="both"),
@@ -408,7 +416,7 @@ voting_info_final_pivot %>%
   summarise(count = n()) %>% 
   arrange(desc(count))
 ```
-## Sumarry Statistics
+## Summary Statistics
 
 ```{r}
 voting_info_final_pivot %>% 
@@ -432,31 +440,22 @@ voting_info_final_pivot %>%
 ```
 
 
-```{r}
+```{r, warning=FALSE, message=FALSE}
 voting_info_final %>%
   group_by(year, winning_party) %>%
   summarise(count = sum(totalvotes)) %>%
   ggplot(aes(x = winning_party, y = count, fill = winning_party)) +  # Map fill to winning_party
   scale_fill_manual(values = c("darkblue","red2"))+
   geom_col(width = 0.5) +  #adjust the width as needed
-  facet_wrap(~year)+
-  labs(title = "Total Votes by Political Party")+
+  facet_wrap(~year) +
   theme_bw() + # Setting background as blank
-  theme(plot.title = element_text(hjust = 0.0,size = 10), #, "Arial"
-        #c(bottom,left,top,right)
-        plot.margin=margin(0.25,0.05,0,0.25, "cm"),#plot.margin = margin(0.25,0.25,0,0.25, "cm"),
-        legend.background=element_blank(),
-        legend.position = "bottom",#legend.position = c(0.11, 0.1), #puts legend inside the plot
-        legend.margin=margin(0,0,0,0,"cm"),
+  theme(legend.position = "bottom",#legend.position = c(0.11, 0.1), #puts legend inside the plot
         # legend.text = element_text(size = 6), #, family = "Arial"
         legend.key.size = unit(8, "mm"), #changes the size of the legend symbol
         legend.title = element_blank(), #removes legend title
         legend.spacing.x = unit(.25, 'cm'),
         axis.title = element_blank()
-        # axis.title.x=element_blank(),
-        # axis.title.y = element_text(size = 7), #, family = "Arial"
-        # axis.text = element_text(size = 7) #, family = "Arial"
-  )
+        )
 ```
 
 
@@ -504,14 +503,76 @@ vif_df$variables <- rownames(vif_df)
 
 ```
 
-#Build Model
+# Build Model
 
 Based on the VIF values shown in our exploratory data analysis, it is evident there is high multicollinearity in our data. Multicollinearity, can cause problems in some models (like linear regression) but may not be as critical for tree-based methods like Random Forests. As such, we will build a Random Forest Model. 
 
+Before modelling, we will exclude non-predictive columns like 'FIPS', 'county', and 'state' from the model and subset the data to only include relevant columns. The columns "FIPS", "county", and "state" are identifiers or categorical labels, not numerical values that contribute directly to predicting totalvotes_2020. Including categorical variables like "county" or "state" without encoding them properly can lead to high dimensionality when creating dummy variables.
+
+## Base model
+### Train
 ```{r}
+#train
+df_subset <- voting_info_final_pivot %>% 
+  select(-c('FIPS', 'county', 'state', "winning_party_2008", "winning_party_2012", "winning_party_2020", "winning_party_2016")) %>% 
+  mutate(across(starts_with("winning"), as.factor))
+       
+# Split the data into training and testing sets (70% train, 30% test)
+set.seed(123)  # for reproducibility
+train_indices <- sample(seq_len(nrow(df_subset)), size = 0.7 * nrow(df_subset))
+train_data <- df_subset[train_indices, ]
+test_data <- df_subset[-train_indices, ]
+
+rf_model <- randomForest(winning_party_binary_2020 ~ ., data = train_data, ntree = 500, mtry = 5, importance = TRUE)
+
+# View the model summary
+print(rf_model)
+    
+```
+### Evaluate
+```{r}
+#evaluate
+# Predictions on the test data
+predictions <- predict(rf_model, test_data)
+
+# Confusion matrix to evaluate accuracy
+conf_matrix <- confusionMatrix(predictions, test_data$winning_party_binary_2020)
+print(conf_matrix)
 
 ```
 
+### Feature Importance
+
+```{r}
+varImpPlot(rf_model)
+```
+
+
+```{r}
+# Variable importance
+ImpData <- as.data.frame(importance(rf_model))
+ImpData$Var.Names <- row.names(ImpData)
+
+ImpData <- ImpData %>% 
+  arrange(desc(MeanDecreaseAccuracy))
+
+ggplot(ImpData, aes(x=Var.Names, y=MeanDecreaseAccuracy)) +
+  geom_segment( aes(x=Var.Names, xend=Var.Names, y=0, yend=MeanDecreaseAccuracy), color="skyblue") +
+  #geom_point(aes(size = IncNodePurity),  color="steelblue", alpha=1) +
+  theme_light() +
+  coord_flip() +
+  theme(
+    legend.position="bottom",
+    panel.grid.major.y = element_blank(),
+    panel.border = element_blank(),
+    axis.ticks.y = element_blank()
+  )
+```
+
+
+
+
+Regression Random Forest with 500 trees was trained, trying 10 random variables at each split. Our model explains 89.66% of the variance, which means it is performing well.The Mean Squared Error on the test set is around 65.5 million, meaning the predictions on average are off by the square root of this value (about 8,090) when predicting the number of votes.
 
 <!-- ### Educational Attainment data -->
 
