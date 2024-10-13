@@ -527,6 +527,9 @@ rf_model <- randomForest(winning_party_binary_2020 ~ ., data = train_data, ntree
 print(rf_model)
     
 ```
+
+This is the out-of-bag (OOB) error estimate, which is an internal error estimate in random forests. In this case, the OOB error rate is 0%, meaning that the model predicts perfectly on the training data based on the OOB observations. This could indicate a potential issue such as overfitting (the model might be too well-fitted to the training data but may not generalize well to unseen data).
+
 ### Evaluate
 ```{r}
 #evaluate
@@ -539,34 +542,73 @@ print(conf_matrix)
 
 ```
 
-### Feature Importance
+171 samples were correctly classified as 0 (True Negatives).
+762 samples were correctly classified as 1 (True Positives).
+1 sample was misclassified as 1 instead of 0 (False Positive).
+0 samples were misclassified as 0 instead of 1 (False Negative).
 
+Accuracy is the proportion of correct predictions over the total number of predictions:
+Accuracy =171+762/(171+1+0+762) = 0.9989 or 99.89%
+This indicates the model correctly classified 99.89% of the test data.
+
+An OOB error rate of 0% on the training set can be a sign of overfitting, as the model may be fitting the noise or very specific patterns in the training data.
+The very high performance on the test set (99.89%) may indicate the test data is similar to the training data, or the model has learned overly complex patterns that won’t generalize to completely new, unseen data.
+
+### Checking for Overfitting
 ```{r}
-varImpPlot(rf_model)
+rf_cv <- train(winning_party_binary_2020 ~ ., data = train_data, method = "rf", trControl = trainControl(method = "cv", number = 10))
+
+print(rf_cv)
 ```
 
+The cross-validation results show perfect performance with an accuracy of 1 and Kappa of 1, meaning that across all the cross-validation folds, the model was able to perfectly predict both classes (0 and 1).
 
-```{r}
-# Variable importance
-ImpData <- as.data.frame(importance(rf_model))
-ImpData$Var.Names <- row.names(ImpData)
+While the cross-validation accuracy is perfect, this further suggests overfitting as previously suspected. The model may have learned the training data too well, meaning it’s memorizing rather than generalizing to unseen data.
 
-#reorder variables based on MeanDecreaseAccuracy to display in descending order
-ImpData$Var.Names <- factor(ImpData$Var.Names, levels = ImpData$Var.Names[order(ImpData$MeanDecreaseAccuracy, decreasing = FALSE)])
+Achieving perfect results in real-world situations is rare, particularly across various cross-validation folds. This may suggest that the dataset lacks sufficient complexity or diversity to effectively challenge the model, or that the model is overly flexible, such as having a high tree depth.
 
-ggplot(ImpData, aes(x=Var.Names, y=MeanDecreaseAccuracy)) +
-  geom_segment(aes(x=Var.Names, xend=Var.Names, y=0, yend=MeanDecreaseAccuracy), color="skyblue") +
-  #geom_point(aes(size = IncNodePurity), color="steelblue", alpha=1) +
-  theme_light() +
-  coord_flip() +
-  theme(
-    legend.position = "bottom",
-    panel.grid.major.y = element_blank(),
-    panel.border = element_blank(),
-    axis.ticks.y = element_blank()
-  )
+<!-- ### Feature Importance -->
 
-```
+<!-- ```{r} -->
+<!-- # Variable importance -->
+<!-- #varImpPlot(rf_model) -->
+<!-- ImpData <- as.data.frame(importance(rf_model)) -->
+<!-- ImpData$Var.Names <- row.names(ImpData) -->
+
+<!-- #reorder variables based on MeanDecreaseAccuracy to display in descending order -->
+<!-- ImpData$Var.Names <- factor(ImpData$Var.Names, levels = ImpData$Var.Names[order(ImpData$MeanDecreaseAccuracy, decreasing = FALSE)]) -->
+
+<!-- ggplot(ImpData, aes(x=Var.Names, y=MeanDecreaseAccuracy)) + -->
+<!--   geom_segment(aes(x=Var.Names, xend=Var.Names, y=0, yend=MeanDecreaseAccuracy), color="skyblue") + -->
+<!--   #geom_point(aes(size = IncNodePurity), color="steelblue", alpha=1) + -->
+<!--   theme_light() + -->
+<!--   coord_flip() + -->
+<!--   theme( -->
+<!--     legend.position = "bottom", -->
+<!--     panel.grid.major.y = element_blank(), -->
+<!--     panel.border = element_blank(), -->
+<!--     axis.ticks.y = element_blank() -->
+<!--   ) -->
+
+<!-- ``` -->
+
+
+<!-- ```{r} -->
+<!-- #reorder variables based on MeanDecreaseGini to display in descending order -->
+<!-- ImpData$Var.Names2 <- factor(ImpData$Var.Names, levels = ImpData$Var.Names[order(ImpData$MeanDecreaseGini, decreasing = FALSE)]) -->
+
+<!-- ggplot(ImpData, aes(x=Var.Names2, y=MeanDecreaseGini)) + -->
+<!--   geom_segment(aes(x=Var.Names2, xend=Var.Names2, y=0, yend=MeanDecreaseGini), color="skyblue") + -->
+<!--   #geom_point(aes(size = IncNodePurity), color="steelblue", alpha=1) + -->
+<!--   theme_light() + -->
+<!--   coord_flip() + -->
+<!--   theme( -->
+<!--     legend.position = "bottom", -->
+<!--     panel.grid.major.y = element_blank(), -->
+<!--     panel.border = element_blank(), -->
+<!--     axis.ticks.y = element_blank() -->
+<!--   ) -->
+<!-- ``` -->
 
 
 <!-- ### Educational Attainment data -->
