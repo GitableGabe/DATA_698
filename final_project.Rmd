@@ -31,6 +31,7 @@ library(car)
 library(Hmisc)
 library(randomForest)
 library(caret)
+library(janitor)
 ```
 
 ```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide'}
@@ -567,6 +568,360 @@ While the cross-validation accuracy is perfect, this further suggests overfittin
 
 Achieving perfect results in real-world situations is rare, particularly across various cross-validation folds. This may suggest that the dataset lacks sufficient complexity or diversity to effectively challenge the model, or that the model is overly flexible, such as having a high tree depth.
 
+One way to address this concern is to add complexity to the model. In order to challenge the model, additional variables will be added.
+
+
+
+## Demographic data
+
+```{r, warning= FALSE, message=FALSE, results='hide'}
+# To obtain data for the 2008 population from the American Community Survey (ACS),
+# you should use the 2006-2008 ACS 3-Year Estimates. This dataset aggregates data
+# collected over those three years, providing insights for the population during that period.
+# 5 year ACS data unavailable for 2008. 3 year ACS data was discontinued after 2009.
+
+#load 2008 data using API
+ed_attain2008 <- get_acs(
+  geography = "county",
+  variables = c(paste0("B15001_00", seq(01,09),"E"),paste0("B15001_0", seq(10,83),"E")),
+  year = 2008,
+  survey = "acs3",
+  cache_table = TRUE) %>%
+  mutate(year=2008)
+
+#2012 data and onward uses the 5 year ACS data
+#load 2012 data using API
+ed_attain2012 <- get_acs(
+  geography = "county",
+  variables = c(paste0("B15001_00", seq(01,09),"E"),paste0("B15001_0", seq(10,83),"E")),
+  year = 2012,
+  survey = "acs5",
+  cache_table = TRUE) %>%
+  mutate(year=2012)
+
+#load 2016 data using API
+ed_attain2016 <- get_acs(
+  geography = "county",
+  variables = c(paste0("B15001_00", seq(01,09),"E"),paste0("B15001_0", seq(10,83),"E")),
+  year = 2016,
+  survey = "acs5",
+  cache_table = TRUE) %>%
+  mutate(year=2016)
+
+#load 2020 data using API
+ed_attain2020 <- get_acs(
+  geography = "county",
+  variables = c(paste0("B15001_00", seq(01,09),"E"),paste0("B15001_0", seq(10,83),"E")),
+  year = 2020,
+  survey = "acs5",
+  cache_table = TRUE) %>%
+  mutate(year=2020)
+
+```
+#### Get column names
+
+```{r}
+#check column names
+#get column names 2008
+url08 <- "https://api.census.gov/data/2008/acs/acs3/groups/B15001.html"
+
+webpage08 <- read_html(url08)
+
+table08 <- webpage08 %>%
+  html_node("table") %>%  # Adjust the selector if necessary
+  html_table() %>%
+  select(c("Name","Label","Concept","Required","Attributes","Limit","Predicate Type","Group"))
+
+filteredtable08 <- table08 %>%
+  # filter(!is.na(Name) & Name != "") %>%  # Remove rows with NA or empty names
+  filter(Name %in% c(paste0("B15001_00", seq(01,09),"E"),paste0("B15001_0", seq(10,83),"E")))
+# %>%
+#    mutate(Label = str_replace_all(Label,", GED, or alternative", ' (includes equivalency)'))
+
+#get column names  2012
+url12 <- "https://api.census.gov/data/2012/acs/acs5/groups/B15001.html"
+
+webpage12 <- read_html(url12)
+
+table12 <- webpage12 %>%
+  html_node("table") %>%  # Adjust the selector if necessary
+  html_table() %>%
+  select(c("Name","Label","Concept","Required","Attributes","Limit","Predicate Type","Group"))
+
+filteredtable12 <- table12 %>%
+  # filter(!is.na(Name) & Name != "") %>%  # Remove rows with NA or empty names
+  filter(Name %in% c(paste0("B15001_00", seq(01,09),"E"),paste0("B15001_0", seq(10,83),"E")))
+# %>%
+#    mutate(Label = str_replace_all(Label,", GED, or alternative", ' (includes equivalency)'))
+
+#get column names 2016
+url16 <- "https://api.census.gov/data/2016/acs/acs5/groups/B15001.html"
+
+webpage16 <- read_html(url16)
+
+table16 <- webpage16 %>%
+  html_node("table") %>%  # Adjust the selector if necessary
+  html_table() %>%
+  select(c("Name","Label","Concept","Required","Attributes","Limit","Predicate Type","Group"))
+
+filteredtable16 <- table16 %>%
+  # filter(!is.na(Name) & Name != "") %>%  # Remove rows with NA or empty names
+  filter(Name %in% c(paste0("B15001_00", seq(01,09),"E"),paste0("B15001_0", seq(10,83),"E")))
+
+#get columnn names 2020
+url20 <- "https://api.census.gov/data/2020/acs/acs5/groups/B15001.html"
+
+webpage20 <- read_html(url20)
+
+table20 <- webpage20 %>%
+  html_node("table") %>%  # Adjust the selector if necessary
+  html_table() %>%
+  select(c("Name","Label","Concept","Required","Attributes","Limit","Predicate Type","Group"))
+
+filteredtable20 <- table20 %>%
+  # filter(!is.na(Name) & Name != "") %>%  # Remove rows with NA or empty names
+  filter(Name %in% c(paste0("B15001_00", seq(01,09),"E"),paste0("B15001_0", seq(10,83),"E"))) %>%
+  mutate(Label = str_replace_all(Label,":",""))
+
+```
+
+```{r message=FALSE, warning=FALSE, include=FALSE, results='hide'}
+#Are column names the same across all ACS data?
+
+filteredtable08==filteredtable12
+
+filteredtable08==filteredtable16
+
+filteredtable08==filteredtable20
+
+filteredtable12==filteredtable16
+
+filteredtable12==filteredtable20
+
+filteredtable16==filteredtable20
+```
+
+```{r}
+#update the mismatches
+filteredtable08 <- filteredtable08 %>%
+   mutate(Label = str_replace_all(Label,", GED, or alternative", ' (includes equivalency)'))
+
+filteredtable12 <- filteredtable12 %>%
+  mutate(Label = str_replace_all(Label,", GED, or alternative", ' (includes equivalency)'))
+```
+
+```{r message=FALSE, warning=FALSE, include=FALSE, results='hide'}
+#recheck
+#Are column names the same across all ACS data?
+
+filteredtable08==filteredtable12
+
+filteredtable08==filteredtable16
+
+filteredtable08==filteredtable20
+
+filteredtable12==filteredtable16
+
+filteredtable12==filteredtable20
+
+filteredtable16==filteredtable20
+
+#yes, they are now so we can just use the column names from the latest ACS
+```
+
+All column names are the same across all 4 election year Educational Attainment data.
+
+#### Combine and merge education data
+```{r}
+ed_attain <- rbind(ed_attain2008, ed_attain2012, ed_attain2016, ed_attain2020)
+
+```
+
+```{r}
+ed_colnames <- filteredtable20 %>%
+  mutate(Name = str_replace_all(Name,"E","")) %>%
+  select(c(Name, Label))
+
+sort(unique(ed_colnames$Name))==sort(unique(ed_attain$variable))
+
+ed_attain2 <- left_join(ed_attain, ed_colnames, by = c("variable"="Name"))
+
+glimpse(ed_attain2)
+```
+
+```{r}
+#identify empty and NA values
+colSums(ed_attain2 == "" | is.na(ed_attain2))
+```
+#### Clean and reshape data
+
+```{r}
+voteFIPS <- unique(voting_info_final_pivot$FIPS)
+demoFIPS <- unique(ed_attain2$GEOID)
+
+ed_attain3 <- ed_attain2 %>%
+  filter(!GEOID %in% setdiff(demoFIPS, voteFIPS)) %>% #keep only the fips we have in the voting dataset
+  mutate(Label2 = Label,
+         #Label2 = str_replace(Label2, "Estimate!!Total!!", ""),
+         #Label2 = str_replace_all(Label2, " ","_")
+         ) %>%
+  separate(Label2, into = c("type","value","gender", "age_group", "education"), sep = "!!") 
+
+# %>% 
+#   separate(NAME, into = c("county","state"),sep=",")
+# 
+# 
+# counties <- count(ed_attain3$county, ed_attain3$state)
+```
+
+```{r}
+head(ed_attain3, 10)
+```
+
+```{r}
+#identify empty and NA values
+colSums(ed_attain3 == "" | is.na(ed_attain3))
+```
+
+
+```{r}
+ed_attain3_na <- ed_attain3 %>%
+  filter(is.na(gender) | is.na(age_group) | is.na(education)) #is.na(gender) | 
+
+ed_attain3_na %>%
+  count(variable, Label)
+
+unique(ed_attain3_na$variable)
+
+```
+
+```{r}
+#total county population
+tot_pop <- ed_attain3 %>%
+  filter(is.na(gender)) %>% 
+  select(GEOID, NAME,  estimate, year, value) #value is the column name that will be used to spread/pivot_wider
+
+#male/female county population
+gen <- ed_attain3 %>%
+  filter(is.na(age_group), !is.na(gender)) %>% 
+  select(GEOID, NAME,  estimate, year, gender)
+
+#gender and age grp population
+age_gen_pop <- ed_attain3_na %>% 
+  filter(!is.na(age_group)) %>% 
+  select(GEOID, NAME,  estimate, year, gender, age_group)
+
+#gender, age, education
+ed_pop <- ed_attain3 %>% 
+  filter(!is.na(education)) %>% 
+  select(GEOID, NAME, estimate, year, gender, age_group, education) 
+
+#age, education
+age <- ed_pop %>% 
+  group_by(GEOID, NAME,  year, age_group) %>% 
+  summarise(estimate = sum(estimate))
+
+#gender, education
+ed_pop2 <- ed_pop %>% 
+  group_by(GEOID, NAME,  year, gender, education) %>% 
+  summarise(estimate = sum(estimate))
+  
+#age, education
+ed_pop3 <- ed_pop %>% 
+  group_by(GEOID, NAME,  year, age_group,  education) %>% 
+  summarise(estimate = sum(estimate))
+
+#education
+ed_pop4 <- ed_pop %>% 
+  group_by(GEOID, NAME,  year, education) %>% 
+  summarise(estimate = sum(estimate))
+
+```
+
+### Age, Gender, Education
+
+```{r}
+#need to spread/pivot_wider and then merge with main dataset for modelling 
+#age
+age <- ed_pop %>% 
+  group_by(GEOID, NAME,  year, age_group) %>% 
+  summarise(estimate = sum(estimate))
+
+#gender
+gen <- ed_attain3 %>%
+  filter(is.na(age_group), !is.na(gender)) %>% 
+  select(GEOID, NAME,  estimate, year, gender)
+
+#education level
+edu <- ed_pop %>% 
+  group_by(GEOID, NAME,  year, education) %>% 
+  summarise(estimate = sum(estimate))
+```
+```{r}
+#age pivoted
+age2 <- age %>% 
+  pivot_wider(id_cols = c(GEOID, NAME),
+              names_from = c(year,age_group),
+              values_from = estimate) 
+
+colSums(age2 == "" | is.na(age2))
+
+#gender pivoted
+gen2 <- gen %>% 
+  pivot_wider(id_cols = c(GEOID, NAME),
+              names_from = c(year, gender),
+              values_from = estimate)
+
+colSums(gen2 == "" | is.na(gen2))
+
+#edu pivoted
+edu2 <- edu %>% 
+  pivot_wider(id_cols = c(GEOID, NAME),
+              names_from = c(year, education),
+              values_from = estimate)
+
+colSums(edu2 == "" | is.na(edu2))
+
+age2 <- age2 %>% 
+  select(-starts_with("2008"))
+
+gen2 <- gen2 %>% 
+  select(-starts_with("2008"))
+
+edu2 <- edu2 %>% 
+  select(-starts_with("2008"))
+```
+
+
+
+```{r}
+dem0 <- left_join(age2, gen2, by = c("GEOID", "NAME"))
+
+dem <- left_join(dem0, edu2, by = c("GEOID", "NAME"))
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<!--  -->
+
+
 <!-- ### Feature Importance -->
 
 <!-- ```{r} -->
@@ -610,226 +965,6 @@ Achieving perfect results in real-world situations is rare, particularly across 
 <!--   ) -->
 <!-- ``` -->
 
-
-<!-- ### Educational Attainment data -->
-
-<!-- ```{r, warning= FALSE, message=FALSE, results='hide'} -->
-<!-- # To obtain data for the 2008 population from the American Community Survey (ACS),  -->
-<!-- # you should use the 2006-2008 ACS 3-Year Estimates. This dataset aggregates data  -->
-<!-- # collected over those three years, providing insights for the population during that period. -->
-<!-- # 5 year ACS data unavailable for 2008. 3 year ACS data was discontinued after 2009. -->
-
-<!-- #load 2008 data using API -->
-<!-- ed_attain2008 <- get_acs( -->
-<!--   geography = "county", -->
-<!--   variables = c(paste0("B15001_00", seq(01,09),"E"),paste0("B15001_0", seq(10,83),"E")), -->
-<!--   year = 2008, -->
-<!--   survey = "acs3", -->
-<!--   cache_table = TRUE) %>%  -->
-<!--   mutate(year=2008) -->
-
-<!-- #2012 data and onward uses the 5 year ACS data -->
-<!-- #load 2012 data using API -->
-<!-- ed_attain2012 <- get_acs( -->
-<!--   geography = "county", -->
-<!--   variables = c(paste0("B15001_00", seq(01,09),"E"),paste0("B15001_0", seq(10,83),"E")), -->
-<!--   year = 2012, -->
-<!--   survey = "acs5", -->
-<!--   cache_table = TRUE) %>%  -->
-<!--   mutate(year=2012) -->
-
-<!-- #load 2016 data using API -->
-<!-- ed_attain2016 <- get_acs( -->
-<!--   geography = "county", -->
-<!--   variables = c(paste0("B15001_00", seq(01,09),"E"),paste0("B15001_0", seq(10,83),"E")), -->
-<!--   year = 2016, -->
-<!--   survey = "acs5", -->
-<!--   cache_table = TRUE) %>%  -->
-<!--   mutate(year=2016) -->
-
-<!-- #load 2020 data using API -->
-<!-- ed_attain2020 <- get_acs( -->
-<!--   geography = "county", -->
-<!--   variables = c(paste0("B15001_00", seq(01,09),"E"),paste0("B15001_0", seq(10,83),"E")), -->
-<!--   year = 2020, -->
-<!--   survey = "acs5", -->
-<!--   cache_table = TRUE) %>%  -->
-<!--   mutate(year=2020) -->
-
-<!-- ``` -->
-<!-- #### Get column names -->
-
-<!-- ```{r} -->
-<!-- #check column names -->
-<!-- #get column names 2008 -->
-<!-- url08 <- "https://api.census.gov/data/2008/acs/acs3/groups/B15001.html" -->
-
-<!-- webpage08 <- read_html(url08) -->
-
-<!-- table08 <- webpage08 %>% -->
-<!--   html_node("table") %>%  # Adjust the selector if necessary -->
-<!--   html_table() %>%  -->
-<!--   select(c("Name","Label","Concept","Required","Attributes","Limit","Predicate Type","Group")) -->
-
-<!-- filteredtable08 <- table08 %>%  -->
-<!--   # filter(!is.na(Name) & Name != "") %>%  # Remove rows with NA or empty names -->
-<!--   filter(Name %in% c(paste0("B15001_00", seq(01,09),"E"),paste0("B15001_0", seq(10,83),"E"))) -->
-<!-- # %>%  -->
-<!-- #    mutate(Label = str_replace_all(Label,", GED, or alternative", ' (includes equivalency)')) -->
-
-<!-- #get column names  2012 -->
-<!-- url12 <- "https://api.census.gov/data/2012/acs/acs5/groups/B15001.html" -->
-
-<!-- webpage12 <- read_html(url12) -->
-
-<!-- table12 <- webpage12 %>% -->
-<!--   html_node("table") %>%  # Adjust the selector if necessary -->
-<!--   html_table() %>%  -->
-<!--   select(c("Name","Label","Concept","Required","Attributes","Limit","Predicate Type","Group")) -->
-
-<!-- filteredtable12 <- table12 %>%  -->
-<!--   # filter(!is.na(Name) & Name != "") %>%  # Remove rows with NA or empty names -->
-<!--   filter(Name %in% c(paste0("B15001_00", seq(01,09),"E"),paste0("B15001_0", seq(10,83),"E"))) -->
-<!-- # %>%  -->
-<!-- #    mutate(Label = str_replace_all(Label,", GED, or alternative", ' (includes equivalency)')) -->
-
-<!-- #get column names 2016 -->
-<!-- url16 <- "https://api.census.gov/data/2016/acs/acs5/groups/B15001.html" -->
-
-<!-- webpage16 <- read_html(url16) -->
-
-<!-- table16 <- webpage16 %>% -->
-<!--   html_node("table") %>%  # Adjust the selector if necessary -->
-<!--   html_table() %>%  -->
-<!--   select(c("Name","Label","Concept","Required","Attributes","Limit","Predicate Type","Group")) -->
-
-<!-- filteredtable16 <- table16 %>%  -->
-<!--   # filter(!is.na(Name) & Name != "") %>%  # Remove rows with NA or empty names -->
-<!--   filter(Name %in% c(paste0("B15001_00", seq(01,09),"E"),paste0("B15001_0", seq(10,83),"E")))  -->
-
-<!-- #get columnn names 2020 -->
-<!-- url20 <- "https://api.census.gov/data/2020/acs/acs5/groups/B15001.html" -->
-
-<!-- webpage20 <- read_html(url20) -->
-
-<!-- table20 <- webpage20 %>% -->
-<!--   html_node("table") %>%  # Adjust the selector if necessary -->
-<!--   html_table() %>%  -->
-<!--   select(c("Name","Label","Concept","Required","Attributes","Limit","Predicate Type","Group")) -->
-
-<!-- filteredtable20 <- table20 %>%  -->
-<!--   # filter(!is.na(Name) & Name != "") %>%  # Remove rows with NA or empty names -->
-<!--   filter(Name %in% c(paste0("B15001_00", seq(01,09),"E"),paste0("B15001_0", seq(10,83),"E"))) %>%  -->
-<!--   mutate(Label = str_replace_all(Label,":","")) -->
-
-<!-- ``` -->
-
-<!-- ```{r include=FALSE, results='hide'} -->
-<!-- #Are column names the same across all ACS data? -->
-
-<!-- filteredtable08==filteredtable12 -->
-
-<!-- filteredtable08==filteredtable16 -->
-
-<!-- filteredtable08==filteredtable20 -->
-
-<!-- filteredtable12==filteredtable16 -->
-
-<!-- filteredtable12==filteredtable20 -->
-
-<!-- filteredtable16==filteredtable20 -->
-<!-- ``` -->
-
-<!-- ```{r} -->
-<!-- #update the mismatches -->
-<!-- filteredtable08 <- filteredtable08 %>%  -->
-<!--    mutate(Label = str_replace_all(Label,", GED, or alternative", ' (includes equivalency)')) -->
-
-<!-- filteredtable12 <- filteredtable12 %>%  -->
-<!--   mutate(Label = str_replace_all(Label,", GED, or alternative", ' (includes equivalency)')) -->
-<!-- ``` -->
-
-<!-- ```{r include=FALSE, results='hide'} -->
-<!-- #recheck  -->
-<!-- #Are column names the same across all ACS data? -->
-
-<!-- filteredtable08==filteredtable12 -->
-
-<!-- filteredtable08==filteredtable16 -->
-
-<!-- filteredtable08==filteredtable20 -->
-
-<!-- filteredtable12==filteredtable16 -->
-
-<!-- filteredtable12==filteredtable20 -->
-
-<!-- filteredtable16==filteredtable20 -->
-
-<!-- #yes, they are now so we can just use the column names from the latest ACS -->
-<!-- ``` -->
-
-<!-- All column names are the same across all 4 election year Educational Attainment data. -->
-
-<!-- #### Combine and merge education data -->
-<!-- ```{r} -->
-<!-- ed_attain <- rbind(ed_attain2008, ed_attain2012, ed_attain2016, ed_attain2020) -->
-
-<!-- ``` -->
-
-<!-- ```{r} -->
-<!-- ed_colnames <- filteredtable20 %>%  -->
-<!--   mutate(Name = str_replace_all(Name,"E","")) %>%  -->
-<!--   select(c(Name, Label)) -->
-
-<!-- sort(unique(ed_colnames$Name))==sort(unique(ed_attain$variable)) -->
-
-<!-- ed_attain2 <- left_join(ed_attain, ed_colnames, by = c("variable"="Name")) -->
-
-<!-- glimpse(ed_attain2) -->
-<!-- ``` -->
-
-<!-- ```{r} -->
-<!-- #identify empty and NA values -->
-<!-- colSums(ed_attain2 == "" | is.na(ed_attain2)) -->
-<!-- ``` -->
-<!-- #### Clean and reshape data -->
-
-<!-- ```{r} -->
-<!-- ed_attain3 <- ed_attain2 %>%  -->
-<!--   mutate(Label2 = Label, -->
-<!--          #Label2 = str_replace(Label2, "Estimate!!Total!!", ""), -->
-<!--          #Label2 = str_replace_all(Label2, " ","_") -->
-<!--          ) %>% -->
-<!--   separate(Label2, into = c("type","value","gender", "age_group", "education"), sep = "!!") -->
-<!-- ``` -->
-
-<!-- ```{r} -->
-<!-- head(ed_attain3, 10) -->
-<!-- ``` -->
-
-<!-- ```{r} -->
-<!-- #identify empty and NA values -->
-<!-- colSums(ed_attain3 == "" | is.na(ed_attain3)) -->
-<!-- ``` -->
-
-
-<!-- ```{r} -->
-<!-- ed_attain3_na <- ed_attain3 %>%  -->
-<!--   filter(is.na(gender) | is.na(age_group) | is.na(education)) -->
-
-<!-- ed_attain3_na %>%  -->
-<!--   count(variable, Label) -->
-
-<!-- unique(ed_attain3_na$variable)  -->
-
-<!-- # need to remove these from the whole data set and save as another -->
-<!-- # reshape both data sets -->
-<!-- # merge back together -->
-<!-- ``` -->
-
-<!-- ```{r} -->
-
-<!-- ``` -->
 
 
 <!-- Other references and notes   -->
