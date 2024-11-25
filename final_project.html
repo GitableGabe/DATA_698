@@ -353,7 +353,7 @@ div.tocify {
 
 <h1 class="title toc-ignore">DATA 698: Masters Research Project</h1>
 <h4 class="author">Gabriella Martinez</h4>
-<h4 class="date">Last edited October 27, 2024</h4>
+<h4 class="date">Last edited November 24, 2024</h4>
 
 </div>
 
@@ -1488,8 +1488,8 @@ VIF &gt; 5 (or sometimes &gt; 10): High multicollinearity, and you may want to c
 <p>One way to address this concern is to add complexity to the model. In order to challenge the model, additional variables will be added.</p>
 </div>
 </div>
-<div id="educational-attainment-data" class="section level2">
-<h2>Educational Attainment data</h2>
+<div id="demographic-data" class="section level2">
+<h2>Demographic data</h2>
 <div class="sourceCode" id="cb92"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb92-1"><a href="#cb92-1" aria-hidden="true" tabindex="-1"></a><span class="co"># To obtain data for the 2008 population from the American Community Survey (ACS),</span></span>
 <span id="cb92-2"><a href="#cb92-2" aria-hidden="true" tabindex="-1"></a><span class="co"># you should use the 2006-2008 ACS 3-Year Estimates. This dataset aggregates data</span></span>
 <span id="cb92-3"><a href="#cb92-3" aria-hidden="true" tabindex="-1"></a><span class="co"># collected over those three years, providing insights for the population during that period.</span></span>
@@ -1743,8 +1743,8 @@ VIF &gt; 5 (or sometimes &gt; 10): High multicollinearity, and you may want to c
 <pre><code>## `summarise()` has grouped output by &#39;GEOID&#39;, &#39;NAME&#39;, &#39;year&#39;. You can override
 ## using the `.groups` argument.</code></pre>
 </div>
-<div id="demographics--age-gender-education" class="section level3">
-<h3>Demographics- Age, Gender, Education</h3>
+<div id="age-gender-education" class="section level3">
+<h3>Age, Gender, Education</h3>
 <div class="sourceCode" id="cb121"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb121-1"><a href="#cb121-1" aria-hidden="true" tabindex="-1"></a><span class="co">#need to spread/pivot_wider and then merge with main dataset for modelling </span></span>
 <span id="cb121-2"><a href="#cb121-2" aria-hidden="true" tabindex="-1"></a><span class="co">#age</span></span>
 <span id="cb121-3"><a href="#cb121-3" aria-hidden="true" tabindex="-1"></a>age <span class="ot">&lt;-</span> ed_pop <span class="sc">%&gt;%</span> </span>

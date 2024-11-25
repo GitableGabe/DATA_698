@@ -568,9 +568,7 @@ While the cross-validation accuracy is perfect, this further suggests overfittin
 
 Achieving perfect results in real-world situations is rare, particularly across various cross-validation folds. This may suggest that the dataset lacks sufficient complexity or diversity to effectively challenge the model, or that the model is overly flexible, such as having a high tree depth.
 
-One way to address this concern is to add complexity to the model. In order to challenge the model, additional variables will be added.
-
-
+One way to address this concern is to add complexity to the model. In order to challenge the model, additional variables related to age, sex, and education will be added.
 
 ## Demographic data
 
@@ -897,25 +895,118 @@ edu2 <- edu2 %>%
 ```{r}
 dem0 <- left_join(age2, gen2, by = c("GEOID", "NAME"))
 
-dem <- left_join(dem0, edu2, by = c("GEOID", "NAME"))
+dem <- left_join(dem0, edu2, by = c("GEOID", "NAME")) %>% 
+  ungroup()
+
+dim(dem)
 ```
 
 
+```{r}
+colSums(dem == "" | is.na(dem))
+
+# dem <- dem %>% 
+#   drop_na()
+# 
+# dim(dem)
+```
+
+```{r}
+dem <- dem %>% 
+  select(-NAME)
+```
 
 
+### Merge with model data
+```{r}
+model_data <- left_join(voting_info_final_pivot, dem, join_by(FIPS == GEOID))
+
+dim(model_data)
+
+#colSums(model_data == "" | is.na(model_data))
+
+model_data2 <- model_data %>% 
+  drop_na() %>% 
+  janitor::clean_names() %>% 
+  mutate(fips1 = as.numeric(fips))
+
+dim(model_data2)
+```
+
+#Build Second Model 
+### Train
+```{r}
+#train
+df_subset2 <- model_data2 %>% 
+  select(-c('fips','county', 'state', "winning_party_2008", "winning_party_2012", "winning_party_2020", "winning_party_2016")) %>% 
+  mutate(across(starts_with("winning"), as.factor))
+       
+# Split the data into training and testing sets (70% train, 30% test)
+set.seed(123)  # for reproducibility
+train_indices2 <- sample(seq_len(nrow(df_subset2)), size = 0.7 * nrow(df_subset2))
+train_data2 <- df_subset2[train_indices2, ]
+test_data2 <- df_subset2[-train_indices2, ]
+
+rf_model2 <- randomForest(winning_party_binary_2020 ~ ., data = train_data2, ntree = 500, mtry = 5, importance = TRUE)
+
+# View the model summary
+print(rf_model2)
+    
+```
+
+True 0 (370): 370 instances of class 0 were correctly classified.
+
+False 0 (0): No 1 instances were incorrectly classified as 0.
+
+True 1 (1806): 1806 instances of class 1 were correctly classified.
+
+False 1 (1): Only 1 0 instance was incorrectly classified as 1.
+
+Class error:
+
+For class 0: 0% error (perfect classification).
+For class 1: ~0.055% error (only 1 misclassification).
+
+### Evaluate
+```{r}
+#evaluate
+# Predictions on the test data
+predictions2 <- predict(rf_model2, test_data2)
+
+#0= dem, 1=rep
+table(predictions2)
+
+# Confusion matrix to evaluate accuracy
+conf_matrix2 <- confusionMatrix(predictions2, test_data2$winning_party_binary_2020)
+print(conf_matrix2)
+
+```
+
+The model's overall accuracy is 99.89%, meaning it correctly classified almost all instances. The accuracy's range of uncertainty is between 99.4% and 100% with 95% confidence. The p-value tests if the model's accuracy is significantly better than the NIR. Since it's much smaller than 0.05, the accuracy is statistically significant.
+
+### Checking for Overfitting
+```{r}
+rf_cv2 <- train(winning_party_binary_2020 ~ ., data = train_data2, method = "rf", trControl = trainControl(method = "cv", number = 10))
+
+print(rf_cv2)
+```
+
+# Prediction
+```{r}
+predictions_2024 <- predict(rf_model2, df_subset2)
+
+# predictions_2024$predicted_class <-  predictions_2024
+
+table(predictions_2024)
+
+table(df_subset2$winning_party_binary_2016)
+
+```
 
 
+```{r}
 
-
-
-
-
-
-
-
-
-
-
+```
 
 
 
