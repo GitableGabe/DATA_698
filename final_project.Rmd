@@ -997,12 +997,15 @@ predictions_2024 <- predict(rf_model2, df_subset2)
 
 # predictions_2024$predicted_class <-  predictions_2024
 
+#demo = 0, rep = 1
 table(predictions_2024)
+
+table(df_subset2$winning_party_binary_2020)
 
 table(df_subset2$winning_party_binary_2016)
 
 ```
-
+The prediction results of the model show 
 
 ```{r}
 
