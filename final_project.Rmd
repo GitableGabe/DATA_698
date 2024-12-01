@@ -122,7 +122,8 @@ candidate_votes <- elections_data %>%
   filter(!is.na(FIPS), pol_identity %in% c('DEMOCRAT', 'REPUBLICAN')) %>% 
   group_by(FIPS,county_name, state, candidate, year, pol_identity, totalvotes) %>% 
   summarise(candidate_votes = sum(candidatevotes)) %>% 
-  ungroup()
+  ungroup() %>% 
+  arrange(FIPS, year)
 
 #spread the candidate votes values
 elections_pivot_df <- candidate_votes %>% 
@@ -204,10 +205,10 @@ voting_info_df_NAs2
 ```
 
 ```{r}
-voting_info_df <- voting_info_df %>% 
+voting_info_df <- voting_info_df %>%
   filter(state != "ALASKA")
 
-voting_info_df_NAs3 <- voting_info_df %>% 
+voting_info_df_NAs3 <- voting_info_df %>%
   filter(is.na(geoname), is.na(cvap_est))
 
 voting_info_df_NAs3
@@ -243,7 +244,7 @@ county_groups <- voting_info_df %>%
 
 county_groups
 ```
-
+###0000 just a marker, will be removed later
 
 ```{r}
 #remove the previous observations
@@ -253,7 +254,47 @@ voting_info_df <- voting_info_df %>%
 #replace with the calculated observations
 voting_info_df <- rbind(voting_info_df, county_groups)
 
+
+FIPS <- unique(voting_info_df$FIPS)
+
+length(FIPS)
+
+county_names <- voting_info_df %>% 
+  group_by(state, county_name) %>% 
+  mutate(county_name = str_to_title(county_name),
+         state = str_to_title(state)) %>% 
+  summarise(n=n())
+
+length(county_names)
 ```
+
+#### Popular Vote
+
+```{r}
+voting_info_df %>% 
+  group_by(year) %>% 
+  summarise(total_dem = sum(votes_dem),
+            total_gop = sum(votes_gop)) %>% 
+  mutate(result = if_else(total_gop > total_dem, "Republican Party","Democratic Party"))
+```
+
+
+
+#### Aggregate by State
+```{r}
+voting_info_df <- voting_info_df %>% 
+  group_by(state, year) %>% 
+  summarise(totalvotes = sum(totalvotes),
+            votes_dem = sum(votes_dem),
+            votes_gop = sum(votes_gop),
+            cvap_est = sum(cvap_est)) %>% 
+  ungroup() %>% 
+  arrange(state, year)
+
+#49 states + DC, Alaska has been removed
+length(unique(voting_info_df$state))
+```
+
 
 #### Calculate additional columns
 
@@ -301,18 +342,25 @@ voting_info_final <- voting_info_df %>%
 
 ```
 
+
+#### By State Result 
 ```{r}
-summary(voting_info_final$voter_turnout)
+voting_info_final %>% 
+  group_by(year, winning_party) %>% 
+  summarise(count= n()) %>% 
+  pivot_wider(id_cols = year,
+              names_from = winning_party,
+              values_from = count) %>% 
+  mutate(result = case_when(`Republican Party` > `Democratic Party` ~ "Republican Party",
+                            `Democratic Party` > `Republican Party` ~ "Democratic Party",
+                            `Democratic Party` == `Republican Party` ~ "Tie"
+                            )
+         )
 ```
 
+
 ```{r}
-turnout_over_1_df <- voting_info_final %>%
-  filter(voter_turnout > 1) %>%
-  select(FIPS, county_name, state, year, voter_turnout, totalvotes, cvap_est) %>%
-  arrange(FIPS, year)
-
-turnout_over_1_df
-
+summary(voting_info_final$voter_turnout)
 ```
 
 
@@ -334,7 +382,7 @@ Pivot the table so that each county has one record and so that data for each ele
 ```{r}
 voting_info_final_pivot <- voting_info_final %>%
   pivot_wider(
-    id_cols = c(FIPS, geoname),
+    id_cols = c(state),
     names_from = year,
     values_from = c(totalvotes, cvap_est, voter_turnout, voter_turnout_dem, voter_turnout_gop, pctdiff_dem_vs_gop, rawdiff_dem_vs_gop, 
                     winning_party,winning_party_binary)
@@ -357,44 +405,44 @@ voting_info_final_pivot_na
 
 
 ```{r}
-voting_info_final <- voting_info_final %>%
-  mutate(FIPS = case_when(FIPS == '46113' ~ '46102', 
-                          FIPS == "51019, 51515" ~ "51019",
-                          TRUE ~ FIPS),
-         geoname = case_when(geoname == "Shannon County, South Dakota" ~ "Oglala Lakota County, South Dakota",#Shannon County, SD (FIPS 46113), was renamed Oglala Lakota County in 2014 and assigned a new FIPS code (46102)
-                             geoname == "La Salle Parish, Louisiana" ~ "LaSalle Parish, Louisiana", #correct spelling
-                             FIPS == "35013" ~ "Dona Ana County, New Mexico", #original data imports with unknown character
-                             TRUE ~ geoname)
-         )
+# voting_info_final <- voting_info_final %>%
+#   mutate(FIPS = case_when(FIPS == '46113' ~ '46102', 
+#                           FIPS == "51019, 51515" ~ "51019",
+#                           TRUE ~ FIPS),
+#          geoname = case_when(geoname == "Shannon County, South Dakota" ~ "Oglala Lakota County, South Dakota",#Shannon County, SD (FIPS 46113), was renamed Oglala Lakota County in 2014 and assigned a new FIPS code (46102)
+#                              geoname == "La Salle Parish, Louisiana" ~ "LaSalle Parish, Louisiana", #correct spelling
+#                              FIPS == "35013" ~ "Dona Ana County, New Mexico", #original data imports with unknown character
+#                              TRUE ~ geoname)
+#          )
 
 ```
 
 ```{r}
-voting_info_final_pivot <- voting_info_final %>%
-  pivot_wider(
-    id_cols = c(FIPS, geoname),
-    names_from = year,
-    values_from = c(totalvotes, cvap_est, voter_turnout, voter_turnout_dem, voter_turnout_gop, pctdiff_dem_vs_gop, rawdiff_dem_vs_gop, 
-                    winning_party, winning_party_binary)
-  ) %>% 
-  separate(col= geoname, into=c("county","state"), sep = ",") %>% 
-  mutate(county = trimws(county, which="both"),
-         state = trimws(state, which = "both"))
+# voting_info_final <- voting_info_final %>%
+#   pivot_wider(
+#     id_cols = c(state),
+#     names_from = year,
+#     values_from = c(totalvotes, cvap_est, voter_turnout, voter_turnout_dem, voter_turnout_gop, pctdiff_dem_vs_gop, rawdiff_dem_vs_gop,
+#                     winning_party, winning_party_binary)
+#   ) 
+# # %>%
+#   separate(col= geoname, into=c("county","state"), sep = ",") %>%
+#   mutate(county = trimws(county, which="both"),
+#          state = trimws(state, which = "both"))
 # colSums(voting_info_final_pivot == ""|is.na(voting_info_final_pivot))
-# 
-# voting_info_final_pivot %>% 
+#
+# voting_info_final_pivot %>%
 #   filter(is.na(state))
 ```
 
 ```{r}
-voting_info_final_pivot_na <- voting_info_final_pivot %>%
-  filter(if_any(where(is.numeric), is.na))
-
-voting_info_final_pivot_na
+# voting_info_final_na <- voting_info_final %>%
+#   filter(if_any(where(is.numeric), is.na))
+# 
+# voting_info_final_na
 ```
 
 # Exploratory Data Analysis
-
 
 ```{r}
 glimpse(voting_info_final_pivot)
@@ -414,6 +462,7 @@ voting_info_final_pivot %>%
   group_by(state) %>% 
   summarise(count = n()) %>% 
   arrange(desc(count))
+
 ```
 ## Summary Statistics
 
@@ -464,7 +513,7 @@ voting_info_final %>%
 ```{r}
 
 df <- voting_info_final_pivot %>% 
-  select(-c(FIPS, county, state, starts_with("winning"))) %>% 
+  select(-c(state, starts_with("winning"))) %>% 
   keep(is.numeric)
 
 cor_matrix <- cor(df)
@@ -513,8 +562,9 @@ Before modelling, we will exclude non-predictive columns like 'FIPS', 'county', 
 ```{r}
 #train
 df_subset <- voting_info_final_pivot %>% 
-  select(-c('FIPS', 'county', 'state', "winning_party_2008", "winning_party_2012", "winning_party_2020", "winning_party_2016")) %>% 
-  mutate(across(starts_with("winning"), as.factor))
+  select(-c("winning_party_2008", "winning_party_2012", "winning_party_2020", "winning_party_2016")) %>% 
+  mutate(across(starts_with("winning"), as.factor),
+         state = as.factor(state))
        
 # Split the data into training and testing sets (70% train, 30% test)
 set.seed(123)  # for reproducibility
@@ -529,7 +579,7 @@ print(rf_model)
     
 ```
 
-This is the out-of-bag (OOB) error estimate, which is an internal error estimate in random forests. In this case, the OOB error rate is 0%, meaning that the model predicts perfectly on the training data based on the OOB observations. This could indicate a potential issue such as overfitting (the model might be too well-fitted to the training data but may not generalize well to unseen data).
+This is the out-of-bag (OOB) error estimate, which is an internal error estimate in random forests. In this case, the OOB error rate is 2.86%, meaning that the model predicts strongly on the training data based on the OOB observations. Overall, the model proves to be highly accurate with almost perfect results and minimal overfitting. 
 
 ### Evaluate
 ```{r}
@@ -543,17 +593,14 @@ print(conf_matrix)
 
 ```
 
-171 samples were correctly classified as 0 (True Negatives).
-762 samples were correctly classified as 1 (True Positives).
+8 samples were correctly classified as 0 (True Negatives).
+6 samples were correctly classified as 1 (True Positives).
 1 sample was misclassified as 1 instead of 0 (False Positive).
 0 samples were misclassified as 0 instead of 1 (False Negative).
 
 Accuracy is the proportion of correct predictions over the total number of predictions:
-Accuracy =171+762/(171+1+0+762) = 0.9989 or 99.89%
-This indicates the model correctly classified 99.89% of the test data.
-
-An OOB error rate of 0% on the training set can be a sign of overfitting, as the model may be fitting the noise or very specific patterns in the training data.
-The very high performance on the test set (99.89%) may indicate the test data is similar to the training data, or the model has learned overly complex patterns that won’t generalize to completely new, unseen data.
+Accuracy =8+6/(8+6+1+0) = 0.9333 or 93.33%
+This indicates the model correctly classified 93.33% of the test data.
 
 ### Checking for Overfitting
 ```{r}
@@ -562,13 +609,9 @@ rf_cv <- train(winning_party_binary_2020 ~ ., data = train_data, method = "rf", 
 print(rf_cv)
 ```
 
-The cross-validation results show perfect performance with an accuracy of 1 and Kappa of 1, meaning that across all the cross-validation folds, the model was able to perfectly predict both classes (0 and 1).
+This Random Forest model shows good performance on the dataset (up to 93.3% accuracy). The tuning process optimized the mtry parameter to balance model complexity and predictive performance. With mtry = 41, the model uses a significant portion of the predictors for splitting, which is likely appropriate given the relatively small number of samples.
 
-While the cross-validation accuracy is perfect, this further suggests overfitting as previously suspected. The model may have learned the training data too well, meaning it’s memorizing rather than generalizing to unseen data.
-
-Achieving perfect results in real-world situations is rare, particularly across various cross-validation folds. This may suggest that the dataset lacks sufficient complexity or diversity to effectively challenge the model, or that the model is overly flexible, such as having a high tree depth.
-
-One way to address this concern is to add complexity to the model. In order to challenge the model, additional variables related to age, sex, and education will be added.
+If deployed, the model should generalize well given the robustness of Random Forest and the cross-validation methodology used.
 
 ## Demographic data
 
@@ -686,17 +729,17 @@ filteredtable20 <- table20 %>%
 ```{r message=FALSE, warning=FALSE, include=FALSE, results='hide'}
 #Are column names the same across all ACS data?
 
-filteredtable08==filteredtable12
+table(filteredtable08==filteredtable12)
 
-filteredtable08==filteredtable16
+table(filteredtable08==filteredtable16)
 
-filteredtable08==filteredtable20
+table(filteredtable08==filteredtable20)
 
-filteredtable12==filteredtable16
+table(filteredtable12==filteredtable16)
 
-filteredtable12==filteredtable20
+table(filteredtable12==filteredtable20)
 
-filteredtable16==filteredtable20
+table(filteredtable16==filteredtable20)
 ```
 
 ```{r}
@@ -712,17 +755,17 @@ filteredtable12 <- filteredtable12 %>%
 #recheck
 #Are column names the same across all ACS data?
 
-filteredtable08==filteredtable12
+table(filteredtable08==filteredtable12)
 
-filteredtable08==filteredtable16
+table(filteredtable08==filteredtable16)
 
-filteredtable08==filteredtable20
+table(filteredtable08==filteredtable20)
 
-filteredtable12==filteredtable16
+table(filteredtable12==filteredtable16)
 
-filteredtable12==filteredtable20
+table(filteredtable12==filteredtable20)
 
-filteredtable16==filteredtable20
+table(filteredtable16==filteredtable20)
 
 #yes, they are now so we can just use the column names from the latest ACS
 ```
@@ -740,7 +783,7 @@ ed_colnames <- filteredtable20 %>%
   mutate(Name = str_replace_all(Name,"E","")) %>%
   select(c(Name, Label))
 
-sort(unique(ed_colnames$Name))==sort(unique(ed_attain$variable))
+table(sort(unique(ed_colnames$Name))==sort(unique(ed_attain$variable)))
 
 ed_attain2 <- left_join(ed_attain, ed_colnames, by = c("variable"="Name"))
 
@@ -753,17 +796,29 @@ colSums(ed_attain2 == "" | is.na(ed_attain2))
 ```
 #### Clean and reshape data
 
+###22222 just a marker, will be removed later
 ```{r}
-voteFIPS <- unique(voting_info_final_pivot$FIPS)
-demoFIPS <- unique(ed_attain2$GEOID)
+# voteFIPS <- unique(voting_info_final_pivot$FIPS)
+# demoFIPS <- unique(ed_attain2$GEOID)
 
 ed_attain3 <- ed_attain2 %>%
-  filter(!GEOID %in% setdiff(demoFIPS, voteFIPS)) %>% #keep only the fips we have in the voting dataset
-  mutate(Label2 = Label,
-         #Label2 = str_replace(Label2, "Estimate!!Total!!", ""),
-         #Label2 = str_replace_all(Label2, " ","_")
-         ) %>%
+  filter(!GEOID %in% setdiff(demoFIPS, FIPS)) %>% #keep only the fips we have in the voting dataset
+  separate(col="NAME", into=c("county", "state"), sep=",") %>% 
+  mutate(county = str_remove(county, " County"),
+         county = if_else(county == "Doña Ana", "Dona Ana", county),
+         Label2 = Label) %>% 
   separate(Label2, into = c("type","value","gender", "age_group", "education"), sep = "!!") 
+  
+
+length(unique(ed_attain3$GEOID))
+
+edcountystate <- ed_attain3 %>% 
+  select(GEOID,county, state) %>% 
+  distinct(GEOID,county,state) %>%
+  group_by(GEOID) %>%
+  summarise(count=n())
+
+#glimpse(edcountystate)
 
 # %>% 
 #   separate(NAME, into = c("county","state"),sep=",")
@@ -910,11 +965,19 @@ colSums(dem == "" | is.na(dem))
 # 
 # dim(dem)
 ```
-
+###888 just a marker, will be removed later
 ```{r}
 dem <- dem %>% 
-  select(-NAME)
+  filter(!str_detect(NAME, "Alaska"))
+  # select(-NAME)
 ```
+
+```{r}
+dem2 <- dem %>% 
+  separate(col="NAME", into=c("county", "state"), sep=",")
+```
+
+
 
 
 ### Merge with model data
