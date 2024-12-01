@@ -587,11 +587,15 @@ This is the out-of-bag (OOB) error estimate, which is an internal error estimate
 # Predictions on the test data
 predictions <- predict(rf_model, test_data)
 
+table(predictions)
+
 # Confusion matrix to evaluate accuracy
 conf_matrix <- confusionMatrix(predictions, test_data$winning_party_binary_2020)
 print(conf_matrix)
 
 ```
+
+The test data correctly predicts Democrat Party for the 2020 election. 
 
 8 samples were correctly classified as 0 (True Negatives).
 6 samples were correctly classified as 1 (True Positives).
