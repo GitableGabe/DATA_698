@@ -785,7 +785,7 @@ ed_colnames <- filteredtable20 %>%
 
 table(sort(unique(ed_colnames$Name))==sort(unique(ed_attain$variable)))
 
-ed_attain2 <- left_join(ed_attain, ed_colnames, by = c("variable"="Name"))
+ed_attain2a <- left_join(ed_attain, ed_colnames, by = c("variable"="Name"))
 
 glimpse(ed_attain2)
 ```
@@ -799,17 +799,22 @@ colSums(ed_attain2 == "" | is.na(ed_attain2))
 ###22222 just a marker, will be removed later
 ```{r}
 # voteFIPS <- unique(voting_info_final_pivot$FIPS)
-# demoFIPS <- unique(ed_attain2$GEOID)
+demoFIPS <- unique(ed_attain2$GEOID)
 
-ed_attain3 <- ed_attain2 %>%
+ed_attain2 <- ed_attain2a %>%
   filter(!GEOID %in% setdiff(demoFIPS, FIPS)) %>% #keep only the fips we have in the voting dataset
   separate(col="NAME", into=c("county", "state"), sep=",") %>% 
   mutate(county = str_remove(county, " County"),
-         county = if_else(county == "Doña Ana", "Dona Ana", county),
-         Label2 = Label) %>% 
+         county = if_else(county == "Doña Ana", "Dona Ana", county)
+         )
+
+ed_attain3 <- ed_attain2 %>% 
+  group_by(state, year, variable, Label) %>% 
+  summarise(estimate = sum(estimate),
+            moe = sum(moe)) %>% 
+  mutate(Label2 = Label) %>%
   separate(Label2, into = c("type","value","gender", "age_group", "education"), sep = "!!") 
   
-
 length(unique(ed_attain3$GEOID))
 
 edcountystate <- ed_attain3 %>% 
@@ -818,13 +823,6 @@ edcountystate <- ed_attain3 %>%
   group_by(GEOID) %>%
   summarise(count=n())
 
-#glimpse(edcountystate)
-
-# %>% 
-#   separate(NAME, into = c("county","state"),sep=",")
-# 
-# 
-# counties <- count(ed_attain3$county, ed_attain3$state)
 ```
 
 ```{r}
@@ -852,41 +850,41 @@ unique(ed_attain3_na$variable)
 #total county population
 tot_pop <- ed_attain3 %>%
   filter(is.na(gender)) %>% 
-  select(GEOID, NAME,  estimate, year, value) #value is the column name that will be used to spread/pivot_wider
+  select(state,  estimate, year, value) #value is the column name that will be used to spread/pivot_wider
 
 #male/female county population
 gen <- ed_attain3 %>%
   filter(is.na(age_group), !is.na(gender)) %>% 
-  select(GEOID, NAME,  estimate, year, gender)
+  select(state,  estimate, year, gender)
 
 #gender and age grp population
 age_gen_pop <- ed_attain3_na %>% 
   filter(!is.na(age_group)) %>% 
-  select(GEOID, NAME,  estimate, year, gender, age_group)
+  select(state,  estimate, year, gender, age_group)
 
 #gender, age, education
 ed_pop <- ed_attain3 %>% 
   filter(!is.na(education)) %>% 
-  select(GEOID, NAME, estimate, year, gender, age_group, education) 
+  select(state, estimate, year, gender, age_group, education) 
 
 #age, education
 age <- ed_pop %>% 
-  group_by(GEOID, NAME,  year, age_group) %>% 
+  group_by(state,  year, age_group) %>% 
   summarise(estimate = sum(estimate))
 
 #gender, education
 ed_pop2 <- ed_pop %>% 
-  group_by(GEOID, NAME,  year, gender, education) %>% 
+  group_by(state,  year, gender, education) %>% 
   summarise(estimate = sum(estimate))
   
 #age, education
 ed_pop3 <- ed_pop %>% 
-  group_by(GEOID, NAME,  year, age_group,  education) %>% 
+  group_by(state,  year, age_group,  education) %>% 
   summarise(estimate = sum(estimate))
 
 #education
 ed_pop4 <- ed_pop %>% 
-  group_by(GEOID, NAME,  year, education) %>% 
+  group_by(state,  year, education) %>% 
   summarise(estimate = sum(estimate))
 
 ```
@@ -897,23 +895,23 @@ ed_pop4 <- ed_pop %>%
 #need to spread/pivot_wider and then merge with main dataset for modelling 
 #age
 age <- ed_pop %>% 
-  group_by(GEOID, NAME,  year, age_group) %>% 
+  group_by(state,  year, age_group) %>% 
   summarise(estimate = sum(estimate))
 
 #gender
 gen <- ed_attain3 %>%
   filter(is.na(age_group), !is.na(gender)) %>% 
-  select(GEOID, NAME,  estimate, year, gender)
+  select(state,  estimate, year, gender)
 
 #education level
 edu <- ed_pop %>% 
-  group_by(GEOID, NAME,  year, education) %>% 
+  group_by(state,  year, education) %>% 
   summarise(estimate = sum(estimate))
 ```
 ```{r}
 #age pivoted
 age2 <- age %>% 
-  pivot_wider(id_cols = c(GEOID, NAME),
+  pivot_wider(id_cols = c(state),
               names_from = c(year,age_group),
               values_from = estimate) 
 
@@ -921,7 +919,7 @@ colSums(age2 == "" | is.na(age2))
 
 #gender pivoted
 gen2 <- gen %>% 
-  pivot_wider(id_cols = c(GEOID, NAME),
+  pivot_wider(id_cols = c(state),
               names_from = c(year, gender),
               values_from = estimate)
 
@@ -929,7 +927,7 @@ colSums(gen2 == "" | is.na(gen2))
 
 #edu pivoted
 edu2 <- edu %>% 
-  pivot_wider(id_cols = c(GEOID, NAME),
+  pivot_wider(id_cols = c(state),
               names_from = c(year, education),
               values_from = estimate)
 
@@ -948,50 +946,45 @@ edu2 <- edu2 %>%
 
 
 ```{r}
-dem0 <- left_join(age2, gen2, by = c("GEOID", "NAME"))
+dem0 <- left_join(age2, gen2, by = c("state"))
 
-dem <- left_join(dem0, edu2, by = c("GEOID", "NAME")) %>% 
+dem <- left_join(dem0, edu2, by = c("state")) %>% 
   ungroup()
 
+#check dimensions, there is an extra state now
 dim(dem)
 ```
 
 
 ```{r}
+#na / empty cell check
 colSums(dem == "" | is.na(dem))
 
-# dem <- dem %>% 
-#   drop_na()
-# 
-# dim(dem)
+#check for dupe, no dupe, but Puerto Rico needs to be filtered out
+unique(dem$state)
 ```
 ###888 just a marker, will be removed later
 ```{r}
 dem <- dem %>% 
-  filter(!str_detect(NAME, "Alaska"))
-  # select(-NAME)
+  filter(!str_detect(state, "Puerto Rico")) %>% 
+  mutate(state = trimws(state, which="both"))
+
+voting_info_final_pivot <- voting_info_final_pivot %>% 
+  mutate(state = str_to_title(state))
 ```
-
-```{r}
-dem2 <- dem %>% 
-  separate(col="NAME", into=c("county", "state"), sep=",")
-```
-
-
 
 
 ### Merge with model data
 ```{r}
-model_data <- left_join(voting_info_final_pivot, dem, join_by(FIPS == GEOID))
+model_data <- left_join(voting_info_final_pivot, dem, join_by(state == state))
 
 dim(model_data)
 
-#colSums(model_data == "" | is.na(model_data))
+colSums(model_data == "" | is.na(model_data))
 
 model_data2 <- model_data %>% 
   drop_na() %>% 
-  janitor::clean_names() %>% 
-  mutate(fips1 = as.numeric(fips))
+  janitor::clean_names()
 
 dim(model_data2)
 ```
@@ -1001,8 +994,9 @@ dim(model_data2)
 ```{r}
 #train
 df_subset2 <- model_data2 %>% 
-  select(-c('fips','county', 'state', "winning_party_2008", "winning_party_2012", "winning_party_2020", "winning_party_2016")) %>% 
-  mutate(across(starts_with("winning"), as.factor))
+  select(-c("winning_party_2008", "winning_party_2012", "winning_party_2020", "winning_party_2016")) %>% 
+  mutate(across(starts_with("winning"), as.factor),
+         state = as.factor(state))
        
 # Split the data into training and testing sets (70% train, 30% test)
 set.seed(123)  # for reproducibility
@@ -1017,18 +1011,17 @@ print(rf_model2)
     
 ```
 
-True 0 (370): 370 instances of class 0 were correctly classified.
+True 0 (15): 15 instances of class 0 were correctly classified.  
 
-False 0 (0): No 1 instances were incorrectly classified as 0.
+False 0 (1): 1 instance was incorrectly classified as 0.  
 
-True 1 (1806): 1806 instances of class 1 were correctly classified.
+True 1 (17): 17 instances of class 1 were correctly classified.  
 
-False 1 (1): Only 1 0 instance was incorrectly classified as 1.
-
-Class error:
-
-For class 0: 0% error (perfect classification).
-For class 1: ~0.055% error (only 1 misclassification).
+False 1 (1): Only 1 instance was incorrectly classified as 1.  
+  
+Class error:  
+For class 0: 0.0625% error.  
+For class 1: 0.0556% error.
 
 ### Evaluate
 ```{r}
@@ -1045,7 +1038,7 @@ print(conf_matrix2)
 
 ```
 
-The model's overall accuracy is 99.89%, meaning it correctly classified almost all instances. The accuracy's range of uncertainty is between 99.4% and 100% with 95% confidence. The p-value tests if the model's accuracy is significantly better than the NIR. Since it's much smaller than 0.05, the accuracy is statistically significant.
+The model performs well overall, with high accuracy (93.33%), excellent sensitivity (88.89%), and perfect specificity (100%). It is also statistically significantly better than random predictions (p = 0.005172). It missed only one instance where the true class was 1 but predicted as 0.  
 
 ### Checking for Overfitting
 ```{r}
@@ -1061,19 +1054,14 @@ predictions_2024 <- predict(rf_model2, df_subset2)
 # predictions_2024$predicted_class <-  predictions_2024
 
 #demo = 0, rep = 1
-table(predictions_2024)
+table(predictions_2024) # Republican Party
 
-table(df_subset2$winning_party_binary_2020)
+table(df_subset2$winning_party_binary_2020) #Democratic Party
 
-table(df_subset2$winning_party_binary_2016)
-
-```
-The prediction results of the model show 
-
-```{r}
+table(df_subset2$winning_party_binary_2016) #Republicn Party
 
 ```
-
+The prediction results of the model show that the Republican Party would win the 2024 elections which is true to the outcome of our elections this year.
 
 
 <!--  -->
