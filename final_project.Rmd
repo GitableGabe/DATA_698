@@ -244,7 +244,7 @@ county_groups <- voting_info_df %>%
 
 county_groups
 ```
-###0000 just a marker, will be removed later
+#### Clean up
 
 ```{r}
 #remove the previous observations
@@ -800,7 +800,6 @@ colSums(ed_attain2 == "" | is.na(ed_attain2))
 ```
 #### Clean and reshape data
 
-###22222 just a marker, will be removed later
 ```{r}
 # voteFIPS <- unique(voting_info_final_pivot$FIPS)
 demoFIPS <- unique(ed_attain2$GEOID)
@@ -967,7 +966,7 @@ colSums(dem == "" | is.na(dem))
 #check for dupe, no dupe, but Puerto Rico needs to be filtered out
 unique(dem$state)
 ```
-###888 just a marker, will be removed later
+#### Clean up
 ```{r}
 dem <- dem %>% 
   filter(!str_detect(state, "Puerto Rico")) %>% 
@@ -1062,7 +1061,7 @@ table(predictions_2024) # Republican Party
 
 table(df_subset2$winning_party_binary_2020) #Democratic Party
 
-table(df_subset2$winning_party_binary_2016) #Republicn Party
+table(df_subset2$winning_party_binary_2016) #Republican Party
 
 ```
 The prediction results of the model show that the Republican Party would win the 2024 elections which is true to the outcome of our elections this year.
