@@ -1,0 +1,1162 @@
+---
+title: 'DATA 698: Masters Research Project'
+author: "Gabriella Martinez & Gabriel Campos"
+date: "Last edited `r format(Sys.time(), '%B %d, %Y')`"
+output:
+      pdf_document:
+        latex_engine: xelatex
+      html_notebook: default
+      html_document:
+        toc: yes
+        toc_float: yes
+        theme: yeti
+        highlight: kate
+        font-family: "Arial"
+        code_folding: show
+      geometry: left=0.5cm,right=0.5cm,top=1cm,bottom=2cm
+urlcolor: blue
+---
+
+
+# Packages
+```{r warning=FALSE, message=FALSE, results='hide'}
+#load libraries
+library(car)
+library(caret)
+library(corrplot)
+library(Hmisc)
+library(ggplot2)
+library(janitor)
+library(randomForest)
+library(reshape2)
+library(rvest)
+library(tidyverse)
+library(tidycensus)
+```
+
+```{r, warning=FALSE}
+# Define the path to the Key folder
+key_file_path <- file.path(".", "Key", "api_key.txt")
+
+# Read the API key from the file
+api_key <- readLines(key_file_path, warn = FALSE)
+
+# Print the API key (for debugging purposes; avoid doing this in production)
+#cat("API Key:", api_key, "\n")
+
+```
+
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide'}
+census_api_key("api_key", overwrite = TRUE, install = TRUE)
+```
+
+
+# Load Data
+## Election Data
+```{r warning=FALSE}
+#https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi:10.7910/DVN/VOQCHQ
+elections <- read_csv("https://raw.githubusercontent.com/gabbypaola/DATA698/refs/heads/main/data/countypres_2000-2020.csv")
+
+#glimpse(elections)
+```
+
+### Cleaning Election data
+```{r}
+#identify empty and NA values. 57 NA values in the county_fips column
+colSums(elections == "" | is.na(elections))
+
+elections %>% 
+  filter(is.na(county_fips))
+
+elections %>% 
+  filter(state_po=="DC")
+```
+
+```{r}
+#clean elections data
+elections_data <- elections %>% 
+  #new name = old name
+  rename(state_abbr = state_po, pol_identity = party, FIPS = county_fips) %>% 
+  mutate(FIPS = ifelse(state_abbr == "DC", "11001", FIPS))
+
+#there are 52 NAs remaining
+remaining_nas <- elections_data %>% 
+  filter(is.na(FIPS)) 
+
+#what are the NAs? 
+#ME MAINE UOCAVA= Uniformed Service & Overseas (UOCAVA) Voters- https://www.maine.gov/sos/cec/elec/voter-info/uocava.html
+#CT= STATEWIDE WRITEIN ~ You may decide to write in the name of a candidate who is not listed on your ballot- https://www.usa.gov/write-in-candidates
+#RI Federal Precinct- no info found
+remaining_nas %>% 
+  count(state_abbr, county_name) 
+```
+
+The remaining NA values in the FIPS column are votes assigned at a state-wide level, not to any count. The "MAINE UOCAVA" county record for the state of Maine represents the count of votes from Uniformed Service & Overseas (UOCAVA) Voters. The "STATEWIDE WRITEIN" for Connecticut represents the count of votes for self-selected candidates not on the presidential ballot. It is unclear what the "FEDERAL PRECINCT" for the state of Rhode Island exactly represents. Either way, our analysis will be conducted at the county level, so these records cannot be used. 
+
+Next we will assess the effect that removing these votes will have on our overall analysis.
+
+```{r}
+#nas
+nrow(remaining_nas)
+
+# Determine the total number of records in the table.
+nrow(elections_data)
+
+round(nrow(remaining_nas)/nrow(elections_data)*100,3)
+```
+
+```{r}
+# Determine the total number of votes cast across all counties in all elections.
+votecount <- elections_data %>% 
+  summarise(count= sum(candidatevotes))
+
+votecount
+```
+
+```{r}
+# Determine how many votes are associated with state-level counts
+null_fips_votecount <- remaining_nas %>% 
+  summarise(count=sum(candidatevotes))
+
+null_fips_votecount
+
+round((null_fips_votecount$count/votecount$count)*100,3)
+```
+
+There were 52 records with state-level counts and null FIPS values in the data, representing 13009 votes.
+This amounts to 0.072% of the total records and 0.002% of the total votes.
+
+The records with state-level counts and null FIPS values represent a small percentage of the total, and they are unlikely to change the overall analysis. Given our assessment, the records will be removed.
+
+```{r}
+#transform data- drop NAs, keep dem and gop only, group records for each candidate by county and year
+candidate_votes <- elections_data %>% 
+  filter(!is.na(FIPS), pol_identity %in% c('DEMOCRAT', 'REPUBLICAN')) %>% 
+  group_by(FIPS,county_name, state, candidate, year, pol_identity, totalvotes) %>% 
+  summarise(candidate_votes = sum(candidatevotes)) %>% 
+  ungroup() %>% 
+  arrange(FIPS, year)
+
+#spread the candidate votes values
+elections_pivot_df <- candidate_votes %>% 
+   pivot_wider(id_cols = c(year, FIPS, county_name, state, totalvotes),
+               names_from = pol_identity,
+               values_from = candidate_votes) %>% 
+  rename(votes_dem = DEMOCRAT,  votes_gop = REPUBLICAN
+         #votes_other = OTHER,votes_grn = GREEN, votes_lib = LIBERTARIAN
+         )
+```
+
+
+## Census Bureau data
+
+About Census Bureau American Community Survey (ACS) data
+https://www.census.gov/programs-surveys/acs/guidance/estimates.html
+
+### Citizen Voting Age Population
+Citizen Voting Age Population, Census Bureau population estimates generated using the American Community Survey
+```{r, message=FALSE, warning=FALSE, results='hide'}
+#CVAP- Citizen Voting Age Population, Census Bureau population estimates generated using the American Community Survey
+
+#https://www.census.gov/programs-surveys/decennial-census/about/voting-rights/cvap.2010.html#list-tab-1518558936 (2008)
+cvap2008 <- read_csv("https://raw.githubusercontent.com/GitableGabe/DATA_698/refs/heads/main/data/CountyCVAP_2006-2010.csv?token=GHSAT0AAAAAACXYKDAYQCHUVJY2V6BVWU7SZXPAZJQ") %>% 
+  rename_with(tolower) %>% 
+  mutate(year=2008)
+
+#https://www.census.gov/programs-surveys/decennial-census/about/voting-rights/cvap.2014.html#list-tab-1518558936 (2012)
+cvap2012 <- read_csv("https://raw.githubusercontent.com/GitableGabe/DATA_698/refs/heads/main/data/CountyCVAP_2010-2014.csv?token=GHSAT0AAAAAACXYKDAYHOL27SGWSEL2AS6IZXPAYSQ") %>% 
+  rename_with(tolower) %>% 
+  mutate(year=2012)
+
+#https://www.census.gov/programs-surveys/decennial-census/about/voting-rights/cvap/2014-2018-CVAP.html (2016)
+cvap2016 <- read_csv("https://raw.githubusercontent.com/GitableGabe/DATA_698/refs/heads/main/data/CountyCVAP_2014-2018.csv?token=GHSAT0AAAAAACXYKDAZJU7ABMJMRNP5WOSIZXPATUQ") %>% 
+  mutate(year=2016)
+
+#https://www.census.gov/programs-surveys/decennial-census/about/voting-rights/cvap/2017-2021-CVAP.html (2020)
+cvap2020 <- read_csv("https://raw.githubusercontent.com/GitableGabe/DATA_698/refs/heads/main/data/CountyCVAP_2017-2021.csv?token=GHSAT0AAAAAACXYKDAYJWVR6SZPSH4NRMSSZXPASSQ") %>% 
+  mutate(year=2020) 
+
+cvap_df <- rbind(cvap2008, cvap2012, cvap2016, cvap2020) %>% 
+  filter(lntitle == 'Total', !str_detect(geoname, "Puerto Rico")) %>% 
+  mutate(FIPS = str_sub(geoid, -5)) %>% 
+  select(c('year', 'FIPS', 'geoname', 'cvap_est'))
+
+#identify empty and NA values
+colSums(cvap_df == "" | is.na(cvap_df))
+```
+
+#### Merge with Election data
+
+```{r}
+voting_info_df <- left_join(elections_pivot_df, cvap_df, by = c("FIPS", "year"))
+
+voting_info_df
+```
+
+```{r}
+#identify empty and NA values
+colSums(voting_info_df == "" | is.na(voting_info_df))
+
+voting_info_df_NAs <- voting_info_df %>% 
+  filter(is.na(geoname), is.na(cvap_est))
+
+voting_info_df_NAs
+
+unique(voting_info_df_NAs$year)
+```
+
+
+```{r}
+voting_info_df <- voting_info_df %>% 
+  filter(year >= 2008)
+
+voting_info_df_NAs2 <- voting_info_df %>% 
+  filter(is.na(geoname), is.na(cvap_est))
+
+voting_info_df_NAs2
+```
+
+```{r}
+voting_info_df <- voting_info_df %>%
+  filter(state != "ALASKA")
+
+voting_info_df_NAs3 <- voting_info_df %>%
+  filter(is.na(geoname), is.na(cvap_est))
+
+voting_info_df_NAs3
+```
+
+```{r}
+voting_info_df_cleaning <- voting_info_df %>% 
+  filter(FIPS %in% c('29095', '36000', '51019', '51515')) %>% 
+  arrange(year, FIPS)
+
+voting_info_df_cleaning
+```
+
+```{r}
+voting_info_df_cleaning %>% 
+  count(FIPS, state, county_name, geoname) %>% 
+  filter(geoname %in% c("Jackson County, Missouri", "Bedford County, Virginia")) %>% 
+  select(-n)
+```
+
+
+```{r}
+# Define the counties to filter and group data by year and state
+county_groups <- voting_info_df %>%
+  filter(FIPS %in% c('29095', '36000', '51019', '51515')) %>%
+  group_by(year, state) %>%
+  summarise(    # Concatenate FIPS codes and county names
+    FIPS = paste(unique(FIPS), collapse = ", "),
+    county_name = paste(unique(county_name), collapse = ", "),
+            across(where(is.numeric), sum, na.rm = TRUE)) %>% 
+  mutate(geoname = case_when(state == "MISSOURI" ~ "Jackson County, Missouri",
+                             state == "VIRGINIA" ~ "Bedford County, Virginia"))
+
+county_groups
+```
+###0000 just a marker, will be removed later
+
+```{r}
+#remove the previous observations
+voting_info_df <- voting_info_df %>% 
+  filter(!FIPS %in% c('29095', '36000', '51019', '51515'))
+
+#replace with the calculated observations
+voting_info_df <- rbind(voting_info_df, county_groups)
+
+
+FIPS <- unique(voting_info_df$FIPS)
+
+length(FIPS)
+
+county_names <- voting_info_df %>% 
+  group_by(state, county_name) %>% 
+  mutate(county_name = str_to_title(county_name),
+         state = str_to_title(state)) %>% 
+  summarise(n=n())
+
+length(county_names)
+```
+
+#### Popular Vote
+
+```{r}
+voting_info_df %>% 
+  group_by(year) %>% 
+  summarise(total_dem = sum(votes_dem),
+            total_gop = sum(votes_gop)) %>% 
+  mutate(result = if_else(total_gop > total_dem, "Republican Party","Democratic Party"))
+```
+
+
+
+#### Aggregate by State
+```{r}
+voting_info_df <- voting_info_df %>% 
+  group_by(state, year) %>% 
+  summarise(totalvotes = sum(totalvotes),
+            votes_dem = sum(votes_dem),
+            votes_gop = sum(votes_gop),
+            cvap_est = sum(cvap_est)) %>% 
+  ungroup() %>% 
+  arrange(state, year)
+
+#49 states + DC, Alaska has been removed
+length(unique(voting_info_df$state))
+```
+
+
+#### Calculate additional columns
+
+```{r}
+voting_info_final <- voting_info_df %>% 
+  mutate(#voters who did not choose the Democratic or Republican party
+         votes_other = totalvotes - votes_dem - votes_gop,
+         #voter share attributes
+         voter_share_major_party = (votes_dem + votes_gop) / totalvotes,
+         voter_share_dem = votes_dem/totalvotes,
+         voter_share_gop = votes_gop/totalvotes,
+         voter_share_other = votes_other/totalvotes,
+         #raw differences
+         rawdiff_dem_vs_gop = votes_dem - votes_gop,
+         rawdiff_gop_vs_dem = votes_gop - votes_dem,
+         rawdiff_dem_vs_other = votes_dem - votes_other,
+         rawdiff_gop_vs_other = votes_gop - votes_other,
+         rawdiff_other_vs_dem = votes_other - votes_dem,
+         rawdiff_other_vs_gop = votes_other - votes_gop,
+         #percentage difference
+         pctdiff_dem_vs_gop = (votes_dem - votes_gop) / totalvotes,
+         pctdiff_gop_vs_dem = (votes_gop - votes_dem) / totalvotes,
+         pctdiff_dem_vs_other = (votes_dem - votes_other) / totalvotes,
+         pctdiff_gop_vs_other = (votes_gop - votes_other) / totalvotes,
+         pctdiff_other_vs_dem = (votes_other - votes_dem) / totalvotes,
+         pctdiff_other_vs_gop = (votes_other - votes_gop) / totalvotes,
+         #voter turnout
+         voter_turnout = totalvotes/cvap_est,
+         voter_turnout_majparty = (votes_dem+votes_gop)/cvap_est,
+         voter_turnout_dem = votes_dem/cvap_est,
+         voter_turnout_gop = votes_gop/cvap_est,
+         voter_turnout_other =votes_other/cvap_est,
+         # get winning political party
+         winning_party = case_when(votes_dem > votes_gop & votes_dem > votes_other ~ "Democratic Party",
+                                   votes_gop > votes_dem & votes_gop > votes_other ~ "Republican Party",
+                                   votes_other > votes_dem & votes_other > votes_gop ~ "Other Party"),
+         pct_margin_of_victory = case_when(winning_party == "Democratic Party" ~ round(((votes_dem - votes_gop) / totalvotes)*100,3), #votes_dem > votes_gop
+                                          winning_party == "Republican Party" ~ round(((votes_gop - votes_dem) / totalvotes)*100,3), #votes_gop > votes_dem
+                                          ),
+         # create binary outcome version of the variable for model use
+         winning_party_binary = case_when(votes_dem > votes_gop & votes_dem > votes_other ~ 0,
+                                   votes_gop > votes_dem & votes_gop > votes_other ~ 1,
+                                   votes_other > votes_dem & votes_other > votes_gop ~ 2),
+         ) 
+
+```
+
+
+#### By State Result 
+```{r}
+voting_info_final %>% 
+  group_by(year, winning_party) %>% 
+  summarise(count= n()) %>% 
+  pivot_wider(id_cols = year,
+              names_from = winning_party,
+              values_from = count) %>% 
+  mutate(result = case_when(`Republican Party` > `Democratic Party` ~ "Republican Party",
+                            `Democratic Party` > `Republican Party` ~ "Democratic Party",
+                            `Democratic Party` == `Republican Party` ~ "Tie"
+                            )
+         )
+```
+
+
+```{r}
+summary(voting_info_final$voter_turnout)
+```
+
+
+```{r}
+voting_info_final <- voting_info_final %>% 
+  mutate(voter_turnout = if_else(voter_turnout>1 , 1, voter_turnout))
+
+summary(voting_info_final$voter_turnout)
+```
+
+```{r}
+dim(voting_info_final)
+```
+
+#### Transforming data for modeling
+
+Pivot the table so that each county has one record and so that data for each election is in separate columns.
+
+```{r}
+voting_info_final_pivot <- voting_info_final %>%
+  pivot_wider(
+    id_cols = c(state),
+    names_from = year,
+    values_from = c(totalvotes, cvap_est, voter_turnout, voter_turnout_dem, voter_turnout_gop, pctdiff_dem_vs_gop, rawdiff_dem_vs_gop, 
+                    winning_party,winning_party_binary)
+  )
+
+dim(voting_info_final_pivot)
+
+```
+
+```{r}
+colSums(is.na(voting_info_final_pivot))
+```
+
+```{r}
+voting_info_final_pivot_na <- voting_info_final_pivot %>%
+  filter(if_any(where(is.numeric), is.na))
+
+voting_info_final_pivot_na
+```
+
+
+```{r}
+# voting_info_final <- voting_info_final %>%
+#   mutate(FIPS = case_when(FIPS == '46113' ~ '46102', 
+#                           FIPS == "51019, 51515" ~ "51019",
+#                           TRUE ~ FIPS),
+#          geoname = case_when(geoname == "Shannon County, South Dakota" ~ "Oglala Lakota County, South Dakota",#Shannon County, SD (FIPS 46113), was renamed Oglala Lakota County in 2014 and assigned a new FIPS code (46102)
+#                              geoname == "La Salle Parish, Louisiana" ~ "LaSalle Parish, Louisiana", #correct spelling
+#                              FIPS == "35013" ~ "Dona Ana County, New Mexico", #original data imports with unknown character
+#                              TRUE ~ geoname)
+#          )
+
+```
+
+```{r}
+# voting_info_final <- voting_info_final %>%
+#   pivot_wider(
+#     id_cols = c(state),
+#     names_from = year,
+#     values_from = c(totalvotes, cvap_est, voter_turnout, voter_turnout_dem, voter_turnout_gop, pctdiff_dem_vs_gop, rawdiff_dem_vs_gop,
+#                     winning_party, winning_party_binary)
+#   ) 
+# # %>%
+#   separate(col= geoname, into=c("county","state"), sep = ",") %>%
+#   mutate(county = trimws(county, which="both"),
+#          state = trimws(state, which = "both"))
+# colSums(voting_info_final_pivot == ""|is.na(voting_info_final_pivot))
+#
+# voting_info_final_pivot %>%
+#   filter(is.na(state))
+```
+
+```{r}
+# voting_info_final_na <- voting_info_final %>%
+#   filter(if_any(where(is.numeric), is.na))
+# 
+# voting_info_final_na
+```
+
+# Exploratory Data Analysis
+
+```{r}
+glimpse(voting_info_final_pivot)
+```
+
+
+```{r}
+#identify empty and NA values
+colSums(voting_info_final_pivot == "" | is.na(voting_info_final_pivot))
+```
+
+
+After cleaning, our dataset includes election data by county for 49 states and the District of Columbia for elections since 2008.
+
+```{r}
+voting_info_final_pivot %>% 
+  group_by(state) %>% 
+  summarise(count = n()) %>% 
+  arrange(desc(count))
+
+```
+## Summary Statistics
+
+```{r}
+voting_info_final_pivot %>% 
+  # keep(is.numeric) %>% 
+  Hmisc::describe()
+```
+
+
+## Distribution of variables
+
+```{r}
+# Histograms
+voting_info_final_pivot %>%
+  keep(is.numeric) %>% 
+  gather() %>%
+  ggplot(aes(value)) +
+    facet_wrap(~ key, scales = "free") +
+    geom_density(fill = "#222222", alpha = 0.5, color = "darkgray") +
+    geom_histogram(aes(y=..density..), alpha=0.5, fill = "#222222", color="darkgray", position="identity") + 
+  theme(axis.title = element_blank())
+```
+
+
+```{r, warning=FALSE, message=FALSE}
+voting_info_final %>%
+  group_by(year, winning_party) %>%
+  summarise(count = sum(totalvotes)) %>%
+  ggplot(aes(x = winning_party, y = count, fill = winning_party)) +  # Map fill to winning_party
+  scale_fill_manual(values = c("darkblue","red2"))+
+  geom_col(width = 0.5) +  #adjust the width as needed
+  facet_wrap(~year) +
+  theme_bw() + # Setting background as blank
+  theme(legend.position = "bottom",#legend.position = c(0.11, 0.1), #puts legend inside the plot
+        # legend.text = element_text(size = 6), #, family = "Arial"
+        legend.key.size = unit(8, "mm"), #changes the size of the legend symbol
+        legend.title = element_blank(), #removes legend title
+        legend.spacing.x = unit(.25, 'cm'),
+        axis.title = element_blank()
+        )
+```
+
+
+## Detect Multicollinearity Using Correlation Matrix
+
+
+```{r}
+
+df <- voting_info_final_pivot %>% 
+  select(-c(state, starts_with("winning"))) %>% 
+  keep(is.numeric)
+
+cor_matrix <- cor(df)
+
+# Create a heatmap for the correlation matrix
+# Visualize correlation between variables
+corrplot.mixed(cor(df %>% keep(is.numeric)), tl.col = 'black', tl.pos = 'lt', upper = "number", lower="shade", shade.col=NA, tl.srt=90 )
+
+```
+
+## Detect Multicollinearity Using VIF
+
+The Variance Inflation Factor (VIF) helps quantify how much multicollinearity exists by showing how much the variance of a coefficient is inflated due to linear dependence with other predictors.
+
+VIF Interpretation:  
+VIF = 1: No correlation between the predictor and other variables.  
+VIF between 1 and 5: Moderate correlation.  
+VIF > 5 (or sometimes > 10): High multicollinearity, and you may want to consider removing this variable.  
+
+```{r}
+vif_data <- vif(lm(totalvotes_2020 ~ ., data=df))  # Fit a linear model and calculate VIF
+print(vif_data)
+```
+
+```{r}
+# Convert VIF values to a dataframe for visualization
+vif_df <- as.data.frame(vif_data)
+vif_df$variables <- rownames(vif_df)
+
+# ggplot(vif_df, aes(x=reorder(variables, V1), y=V1)) + 
+#   geom_bar(stat="identity", fill="steelblue") + 
+#   coord_flip() + 
+#   theme_minimal() +
+#   labs(title="VIF of Variables", x="Variables", y="VIF")
+
+```
+
+# Build Model
+
+Based on the VIF values shown in our exploratory data analysis, it is evident there is high multicollinearity in our data. Multicollinearity, can cause problems in some models (like linear regression) but may not be as critical for tree-based methods like Random Forests. As such, we will build a Random Forest Model. 
+
+Before modelling, we will exclude non-predictive columns like 'FIPS', 'county', and 'state' from the model and subset the data to only include relevant columns. The columns "FIPS", "county", and "state" are identifiers or categorical labels, not numerical values that contribute directly to predicting totalvotes_2020. Including categorical variables like "county" or "state" without encoding them properly can lead to high dimensionality when creating dummy variables.
+
+## Base model
+### Train
+```{r}
+#train
+df_subset <- voting_info_final_pivot %>% 
+  select(-c("winning_party_2008", "winning_party_2012", "winning_party_2020", "winning_party_2016")) %>% 
+  mutate(across(starts_with("winning"), as.factor),
+         state = as.factor(state))
+       
+# Split the data into training and testing sets (70% train, 30% test)
+set.seed(123)  # for reproducibility
+train_indices <- sample(seq_len(nrow(df_subset)), size = 0.7 * nrow(df_subset))
+train_data <- df_subset[train_indices, ]
+test_data <- df_subset[-train_indices, ]
+
+rf_model <- randomForest(winning_party_binary_2020 ~ ., data = train_data, ntree = 500, mtry = 5, importance = TRUE)
+
+# View the model summary
+print(rf_model)
+    
+```
+
+This is the out-of-bag (OOB) error estimate, which is an internal error estimate in random forests. In this case, the OOB error rate is 2.86%, meaning that the model predicts strongly on the training data based on the OOB observations. Overall, the model proves to be highly accurate with almost perfect results and minimal overfitting. 
+
+### Evaluate
+```{r}
+#evaluate
+# Predictions on the test data
+predictions <- predict(rf_model, test_data)
+
+table(predictions)
+
+# Confusion matrix to evaluate accuracy
+conf_matrix <- confusionMatrix(predictions, test_data$winning_party_binary_2020)
+print(conf_matrix)
+
+```
+
+The test data correctly predicts Democrat Party for the 2020 election. 
+
+8 samples were correctly classified as 0 (True Negatives).
+6 samples were correctly classified as 1 (True Positives).
+1 sample was misclassified as 1 instead of 0 (False Positive).
+0 samples were misclassified as 0 instead of 1 (False Negative).
+
+Accuracy is the proportion of correct predictions over the total number of predictions:
+Accuracy =8+6/(8+6+1+0) = 0.9333 or 93.33%
+This indicates the model correctly classified 93.33% of the test data.
+
+### Checking for Overfitting
+```{r}
+rf_cv <- train(winning_party_binary_2020 ~ ., data = train_data, method = "rf", trControl = trainControl(method = "cv", number = 10))
+
+print(rf_cv)
+```
+
+This Random Forest model shows good performance on the dataset (up to 93.3% accuracy). The tuning process optimized the mtry parameter to balance model complexity and predictive performance. With mtry = 41, the model uses a significant portion of the predictors for splitting, which is likely appropriate given the relatively small number of samples.
+
+If deployed, the model should generalize well given the robustness of Random Forest and the cross-validation methodology used.
+
+## Demographic data
+
+```{r, warning= FALSE, message=FALSE, results='hide'}
+# To obtain data for the 2008 population from the American Community Survey (ACS),
+# you should use the 2006-2008 ACS 3-Year Estimates. This dataset aggregates data
+# collected over those three years, providing insights for the population during that period.
+# 5 year ACS data unavailable for 2008. 3 year ACS data was discontinued after 2009.
+
+#load 2008 data using API
+ed_attain2008 <- get_acs(
+  geography = "county",
+  variables = c(paste0("B15001_00", seq(01,09),"E"),paste0("B15001_0", seq(10,83),"E")),
+  year = 2008,
+  survey = "acs3",
+  cache_table = TRUE) %>%
+  mutate(year=2008)
+
+#2012 data and onward uses the 5 year ACS data
+#load 2012 data using API
+ed_attain2012 <- get_acs(
+  geography = "county",
+  variables = c(paste0("B15001_00", seq(01,09),"E"),paste0("B15001_0", seq(10,83),"E")),
+  year = 2012,
+  survey = "acs5",
+  cache_table = TRUE) %>%
+  mutate(year=2012)
+
+#load 2016 data using API
+ed_attain2016 <- get_acs(
+  geography = "county",
+  variables = c(paste0("B15001_00", seq(01,09),"E"),paste0("B15001_0", seq(10,83),"E")),
+  year = 2016,
+  survey = "acs5",
+  cache_table = TRUE) %>%
+  mutate(year=2016)
+
+#load 2020 data using API
+ed_attain2020 <- get_acs(
+  geography = "county",
+  variables = c(paste0("B15001_00", seq(01,09),"E"),paste0("B15001_0", seq(10,83),"E")),
+  year = 2020,
+  survey = "acs5",
+  cache_table = TRUE) %>%
+  mutate(year=2020)
+
+```
+#### Get column names
+
+```{r}
+#check column names
+#get column names 2008
+url08 <- "https://api.census.gov/data/2008/acs/acs3/groups/B15001.html"
+
+webpage08 <- read_html(url08)
+
+table08 <- webpage08 %>%
+  html_node("table") %>%  # Adjust the selector if necessary
+  html_table() %>%
+  select(c("Name","Label","Concept","Required","Attributes","Limit","Predicate Type","Group"))
+
+filteredtable08 <- table08 %>%
+  # filter(!is.na(Name) & Name != "") %>%  # Remove rows with NA or empty names
+  filter(Name %in% c(paste0("B15001_00", seq(01,09),"E"),paste0("B15001_0", seq(10,83),"E")))
+# %>%
+#    mutate(Label = str_replace_all(Label,", GED, or alternative", ' (includes equivalency)'))
+
+#get column names  2012
+url12 <- "https://api.census.gov/data/2012/acs/acs5/groups/B15001.html"
+
+webpage12 <- read_html(url12)
+
+table12 <- webpage12 %>%
+  html_node("table") %>%  # Adjust the selector if necessary
+  html_table() %>%
+  select(c("Name","Label","Concept","Required","Attributes","Limit","Predicate Type","Group"))
+
+filteredtable12 <- table12 %>%
+  # filter(!is.na(Name) & Name != "") %>%  # Remove rows with NA or empty names
+  filter(Name %in% c(paste0("B15001_00", seq(01,09),"E"),paste0("B15001_0", seq(10,83),"E")))
+# %>%
+#    mutate(Label = str_replace_all(Label,", GED, or alternative", ' (includes equivalency)'))
+
+#get column names 2016
+url16 <- "https://api.census.gov/data/2016/acs/acs5/groups/B15001.html"
+
+webpage16 <- read_html(url16)
+
+table16 <- webpage16 %>%
+  html_node("table") %>%  # Adjust the selector if necessary
+  html_table() %>%
+  select(c("Name","Label","Concept","Required","Attributes","Limit","Predicate Type","Group"))
+
+filteredtable16 <- table16 %>%
+  # filter(!is.na(Name) & Name != "") %>%  # Remove rows with NA or empty names
+  filter(Name %in% c(paste0("B15001_00", seq(01,09),"E"),paste0("B15001_0", seq(10,83),"E")))
+
+#get columnn names 2020
+url20 <- "https://api.census.gov/data/2020/acs/acs5/groups/B15001.html"
+
+webpage20 <- read_html(url20)
+
+table20 <- webpage20 %>%
+  html_node("table") %>%  # Adjust the selector if necessary
+  html_table() %>%
+  select(c("Name","Label","Concept","Required","Attributes","Limit","Predicate Type","Group"))
+
+filteredtable20 <- table20 %>%
+  # filter(!is.na(Name) & Name != "") %>%  # Remove rows with NA or empty names
+  filter(Name %in% c(paste0("B15001_00", seq(01,09),"E"),paste0("B15001_0", seq(10,83),"E"))) %>%
+  mutate(Label = str_replace_all(Label,":",""))
+
+```
+
+```{r message=FALSE, warning=FALSE, include=FALSE, results='hide'}
+#Are column names the same across all ACS data?
+
+table(filteredtable08==filteredtable12)
+
+table(filteredtable08==filteredtable16)
+
+table(filteredtable08==filteredtable20)
+
+table(filteredtable12==filteredtable16)
+
+table(filteredtable12==filteredtable20)
+
+table(filteredtable16==filteredtable20)
+```
+
+```{r}
+#update the mismatches
+filteredtable08 <- filteredtable08 %>%
+   mutate(Label = str_replace_all(Label,", GED, or alternative", ' (includes equivalency)'))
+
+filteredtable12 <- filteredtable12 %>%
+  mutate(Label = str_replace_all(Label,", GED, or alternative", ' (includes equivalency)'))
+```
+
+```{r message=FALSE, warning=FALSE, include=FALSE, results='hide'}
+#recheck
+#Are column names the same across all ACS data?
+
+table(filteredtable08==filteredtable12)
+
+table(filteredtable08==filteredtable16)
+
+table(filteredtable08==filteredtable20)
+
+table(filteredtable12==filteredtable16)
+
+table(filteredtable12==filteredtable20)
+
+table(filteredtable16==filteredtable20)
+
+#yes, they are now so we can just use the column names from the latest ACS
+```
+
+All column names are the same across all 4 election year Educational Attainment data.
+
+#### Combine and merge education data
+```{r}
+ed_attain <- rbind(ed_attain2008, ed_attain2012, ed_attain2016, ed_attain2020)
+
+```
+
+```{r}
+ed_colnames <- filteredtable20 %>%
+  mutate(Name = str_replace_all(Name,"E","")) %>%
+  select(c(Name, Label))
+
+table(sort(unique(ed_colnames$Name))==sort(unique(ed_attain$variable)))
+
+ed_attain2a <- left_join(ed_attain, ed_colnames, by = c("variable"="Name"))
+
+glimpse(ed_attain2)
+```
+
+```{r}
+#identify empty and NA values
+colSums(ed_attain2 == "" | is.na(ed_attain2))
+```
+#### Clean and reshape data
+
+###22222 just a marker, will be removed later
+```{r}
+# voteFIPS <- unique(voting_info_final_pivot$FIPS)
+demoFIPS <- unique(ed_attain2$GEOID)
+
+ed_attain2 <- ed_attain2a %>%
+  filter(!GEOID %in% setdiff(demoFIPS, FIPS)) %>% #keep only the fips we have in the voting dataset
+  separate(col="NAME", into=c("county", "state"), sep=",") %>% 
+  mutate(county = str_remove(county, " County"),
+         county = if_else(county == "Doña Ana", "Dona Ana", county)
+         )
+
+ed_attain3 <- ed_attain2 %>% 
+  group_by(state, year, variable, Label) %>% 
+  summarise(estimate = sum(estimate),
+            moe = sum(moe)) %>% 
+  mutate(Label2 = Label) %>%
+  separate(Label2, into = c("type","value","gender", "age_group", "education"), sep = "!!") 
+  
+length(unique(ed_attain3$GEOID))
+
+edcountystate <- ed_attain3 %>% 
+  select(GEOID,county, state) %>% 
+  distinct(GEOID,county,state) %>%
+  group_by(GEOID) %>%
+  summarise(count=n())
+
+```
+
+```{r}
+head(ed_attain3, 10)
+```
+
+```{r}
+#identify empty and NA values
+colSums(ed_attain3 == "" | is.na(ed_attain3))
+```
+
+
+```{r}
+ed_attain3_na <- ed_attain3 %>%
+  filter(is.na(gender) | is.na(age_group) | is.na(education)) #is.na(gender) | 
+
+ed_attain3_na %>%
+  count(variable, Label)
+
+unique(ed_attain3_na$variable)
+
+```
+
+```{r}
+#total county population
+tot_pop <- ed_attain3 %>%
+  filter(is.na(gender)) %>% 
+  select(state,  estimate, year, value) #value is the column name that will be used to spread/pivot_wider
+
+#male/female county population
+gen <- ed_attain3 %>%
+  filter(is.na(age_group), !is.na(gender)) %>% 
+  select(state,  estimate, year, gender)
+
+#gender and age grp population
+age_gen_pop <- ed_attain3_na %>% 
+  filter(!is.na(age_group)) %>% 
+  select(state,  estimate, year, gender, age_group)
+
+#gender, age, education
+ed_pop <- ed_attain3 %>% 
+  filter(!is.na(education)) %>% 
+  select(state, estimate, year, gender, age_group, education) 
+
+#age, education
+age <- ed_pop %>% 
+  group_by(state,  year, age_group) %>% 
+  summarise(estimate = sum(estimate))
+
+#gender, education
+ed_pop2 <- ed_pop %>% 
+  group_by(state,  year, gender, education) %>% 
+  summarise(estimate = sum(estimate))
+  
+#age, education
+ed_pop3 <- ed_pop %>% 
+  group_by(state,  year, age_group,  education) %>% 
+  summarise(estimate = sum(estimate))
+
+#education
+ed_pop4 <- ed_pop %>% 
+  group_by(state,  year, education) %>% 
+  summarise(estimate = sum(estimate))
+
+```
+
+### Age, Gender, Education
+
+```{r}
+#need to spread/pivot_wider and then merge with main dataset for modelling 
+#age
+age <- ed_pop %>% 
+  group_by(state,  year, age_group) %>% 
+  summarise(estimate = sum(estimate))
+
+#gender
+gen <- ed_attain3 %>%
+  filter(is.na(age_group), !is.na(gender)) %>% 
+  select(state,  estimate, year, gender)
+
+#education level
+edu <- ed_pop %>% 
+  group_by(state,  year, education) %>% 
+  summarise(estimate = sum(estimate))
+```
+```{r}
+#age pivoted
+age2 <- age %>% 
+  pivot_wider(id_cols = c(state),
+              names_from = c(year,age_group),
+              values_from = estimate) 
+
+colSums(age2 == "" | is.na(age2))
+
+#gender pivoted
+gen2 <- gen %>% 
+  pivot_wider(id_cols = c(state),
+              names_from = c(year, gender),
+              values_from = estimate)
+
+colSums(gen2 == "" | is.na(gen2))
+
+#edu pivoted
+edu2 <- edu %>% 
+  pivot_wider(id_cols = c(state),
+              names_from = c(year, education),
+              values_from = estimate)
+
+colSums(edu2 == "" | is.na(edu2))
+
+age2 <- age2 %>% 
+  select(-starts_with("2008"))
+
+gen2 <- gen2 %>% 
+  select(-starts_with("2008"))
+
+edu2 <- edu2 %>% 
+  select(-starts_with("2008"))
+```
+
+
+
+```{r}
+dem0 <- left_join(age2, gen2, by = c("state"))
+
+dem <- left_join(dem0, edu2, by = c("state")) %>% 
+  ungroup()
+
+#check dimensions, there is an extra state now
+dim(dem)
+```
+
+
+```{r}
+#na / empty cell check
+colSums(dem == "" | is.na(dem))
+
+#check for dupe, no dupe, but Puerto Rico needs to be filtered out
+unique(dem$state)
+```
+###888 just a marker, will be removed later
+```{r}
+dem <- dem %>% 
+  filter(!str_detect(state, "Puerto Rico")) %>% 
+  mutate(state = trimws(state, which="both"))
+
+voting_info_final_pivot <- voting_info_final_pivot %>% 
+  mutate(state = str_to_title(state))
+```
+
+
+### Merge with model data
+```{r}
+model_data <- left_join(voting_info_final_pivot, dem, join_by(state == state))
+
+dim(model_data)
+
+colSums(model_data == "" | is.na(model_data))
+
+model_data2 <- model_data %>% 
+  drop_na() %>% 
+  janitor::clean_names()
+
+dim(model_data2)
+```
+
+#Build Second Model 
+### Train
+```{r}
+#train
+df_subset2 <- model_data2 %>% 
+  select(-c("winning_party_2008", "winning_party_2012", "winning_party_2020", "winning_party_2016")) %>% 
+  mutate(across(starts_with("winning"), as.factor),
+         state = as.factor(state))
+       
+# Split the data into training and testing sets (70% train, 30% test)
+set.seed(123)  # for reproducibility
+train_indices2 <- sample(seq_len(nrow(df_subset2)), size = 0.7 * nrow(df_subset2))
+train_data2 <- df_subset2[train_indices2, ]
+test_data2 <- df_subset2[-train_indices2, ]
+
+rf_model2 <- randomForest(winning_party_binary_2020 ~ ., data = train_data2, ntree = 500, mtry = 5, importance = TRUE)
+
+# View the model summary
+print(rf_model2)
+    
+```
+
+True 0 (15): 15 instances of class 0 were correctly classified.  
+
+False 0 (1): 1 instance was incorrectly classified as 0.  
+
+True 1 (17): 17 instances of class 1 were correctly classified.  
+
+False 1 (1): Only 1 instance was incorrectly classified as 1.  
+  
+Class error:  
+For class 0: 0.0625% error.  
+For class 1: 0.0556% error.
+
+### Evaluate
+```{r}
+#evaluate
+# Predictions on the test data
+predictions2 <- predict(rf_model2, test_data2)
+
+#0= dem, 1=rep
+table(predictions2)
+
+# Confusion matrix to evaluate accuracy
+conf_matrix2 <- confusionMatrix(predictions2, test_data2$winning_party_binary_2020)
+print(conf_matrix2)
+
+```
+
+The model performs well overall, with high accuracy (93.33%), excellent sensitivity (88.89%), and perfect specificity (100%). It is also statistically significantly better than random predictions (p = 0.005172). It missed only one instance where the true class was 1 but predicted as 0.  
+
+### Checking for Overfitting
+```{r}
+rf_cv2 <- train(winning_party_binary_2020 ~ ., data = train_data2, method = "rf", trControl = trainControl(method = "cv", number = 10))
+
+print(rf_cv2)
+```
+
+# Prediction
+```{r}
+predictions_2024 <- predict(rf_model2, df_subset2)
+
+# predictions_2024$predicted_class <-  predictions_2024
+
+#demo = 0, rep = 1
+table(predictions_2024) # Republican Party
+
+table(df_subset2$winning_party_binary_2020) #Democratic Party
+
+table(df_subset2$winning_party_binary_2016) #Republicn Party
+
+```
+The prediction results of the model show that the Republican Party would win the 2024 elections which is true to the outcome of our elections this year.
+
+
+<!--  -->
+
+
+<!-- ### Feature Importance -->
+
+<!-- ```{r} -->
+<!-- # Variable importance -->
+<!-- #varImpPlot(rf_model) -->
+<!-- ImpData <- as.data.frame(importance(rf_model)) -->
+<!-- ImpData$Var.Names <- row.names(ImpData) -->
+
+<!-- #reorder variables based on MeanDecreaseAccuracy to display in descending order -->
+<!-- ImpData$Var.Names <- factor(ImpData$Var.Names, levels = ImpData$Var.Names[order(ImpData$MeanDecreaseAccuracy, decreasing = FALSE)]) -->
+
+<!-- ggplot(ImpData, aes(x=Var.Names, y=MeanDecreaseAccuracy)) + -->
+<!--   geom_segment(aes(x=Var.Names, xend=Var.Names, y=0, yend=MeanDecreaseAccuracy), color="skyblue") + -->
+<!--   #geom_point(aes(size = IncNodePurity), color="steelblue", alpha=1) + -->
+<!--   theme_light() + -->
+<!--   coord_flip() + -->
+<!--   theme( -->
+<!--     legend.position = "bottom", -->
+<!--     panel.grid.major.y = element_blank(), -->
+<!--     panel.border = element_blank(), -->
+<!--     axis.ticks.y = element_blank() -->
+<!--   ) -->
+
+<!-- ``` -->
+
+
+<!-- ```{r} -->
+<!-- #reorder variables based on MeanDecreaseGini to display in descending order -->
+<!-- ImpData$Var.Names2 <- factor(ImpData$Var.Names, levels = ImpData$Var.Names[order(ImpData$MeanDecreaseGini, decreasing = FALSE)]) -->
+
+<!-- ggplot(ImpData, aes(x=Var.Names2, y=MeanDecreaseGini)) + -->
+<!--   geom_segment(aes(x=Var.Names2, xend=Var.Names2, y=0, yend=MeanDecreaseGini), color="skyblue") + -->
+<!--   #geom_point(aes(size = IncNodePurity), color="steelblue", alpha=1) + -->
+<!--   theme_light() + -->
+<!--   coord_flip() + -->
+<!--   theme( -->
+<!--     legend.position = "bottom", -->
+<!--     panel.grid.major.y = element_blank(), -->
+<!--     panel.border = element_blank(), -->
+<!--     axis.ticks.y = element_blank() -->
+<!--   ) -->
+<!-- ``` -->
+
+
+
+<!-- Other references and notes   -->
+
+
+<!-- Esri prompt   -->
+<!-- Because voting is voluntary in the United States, the level of voter participation -->
+<!-- (referred to as "voter turnout") has a significant impact on the election results -->
+<!-- and resulting public policy.   -->
+<!-- Modeling voter turnout, and understanding where low turnout is prevalent, can -->
+<!-- inform outreach efforts to increase voter participation. With the ultimate goal -->
+<!-- of predicting voter turnout, in this exercise, you will focus on performing various -->
+<!-- data engineering tasks to prepare election result data for predictive analysis. -->
+
+
+<!-- Voter turnout   -->
+<!-- https://electionlab.mit.edu/research/voter-turnout   -->
+<!-- https://election.lab.ufl.edu/ (VEP- Voting Eligible Population) data by state and election, by county not available   -->
+
+<!-- Redistricting    -->
+<!-- https://www.propublica.org/article/redistricting-a-devils-dictionary (definitions)   -->
+
+<!-- Class bias   -->
+<!-- https://web.archive.org/web/20141107053600/http://academic.udayton.edu/grantneeley/pol%20303/avery%20and%20peffley%20-%20SPPQ%202005.pdf   -->
+<!-- https://web.archive.org/web/20160412151014/https://www.nyu.edu/gsas/dept/politics/faculty/nagler/apsa2006_rv7.pdf   -->
+
+<!-- Felon disenfranchisement   -->
+<!-- https://web.archive.org/web/20190516191656/https://felonvoting.procon.org/sourcefiles/uggen_manza_asr_02.pdf   -->
+
+
+<!------- Below is for removing excessive space in Rmarkdown | HTML formatting -------->
+
+<div class="tocify-extend-page" data-unique="tocify-extend-page" style="height: 0;"></div>
