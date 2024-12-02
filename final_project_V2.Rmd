@@ -3,9 +3,6 @@ title: 'DATA 698: Masters Research Project'
 author: "Gabriella Martinez & Gabriel Campos"
 date: "Last edited `r format(Sys.time(), '%B %d, %Y')`"
 output:
-      pdf_document:
-        latex_engine: xelatex
-      html_notebook: default
       html_document:
         toc: yes
         toc_float: yes
@@ -13,6 +10,9 @@ output:
         highlight: kate
         font-family: "Arial"
         code_folding: show
+      html_notebook: default
+      pdf_document:
+        latex_engine: xelatex
       geometry: left=0.5cm,right=0.5cm,top=1cm,bottom=2cm
 urlcolor: blue
 ---
@@ -53,7 +53,11 @@ census_api_key("api_key", overwrite = TRUE, install = TRUE)
 
 
 # Load Data
+
 ## Election Data
+
+[**Harvard Dataverse**](https://data.harvard.edu/dataverse) is an open-source data repository platform developed by [Harvard University](https://www.harvard.edu). It is designed to facilitate the sharing, preservation, and citation of research data across various disciplines. Harvard Dataverse is part of the larger Dataverse Project, which provides an open-source platform for institutions to host their own Dataverse installations.
+
 ```{r warning=FALSE}
 #https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi:10.7910/DVN/VOQCHQ
 elections <- read_csv("https://raw.githubusercontent.com/gabbypaola/DATA698/refs/heads/main/data/countypres_2000-2020.csv")
