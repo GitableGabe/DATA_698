@@ -3,9 +3,6 @@ title: 'DATA 698: Masters Research Project'
 author: "Gabriella Martinez & Gabriel Campos"
 date: "Last edited `r format(Sys.time(), '%B %d, %Y')`"
 output:
-      pdf_document:
-        latex_engine: xelatex
-      html_notebook: default
       html_document:
         toc: yes
         toc_float: yes
@@ -13,6 +10,9 @@ output:
         highlight: kate
         font-family: "Arial"
         code_folding: show
+      html_notebook: default
+      pdf_document:
+        latex_engine: xelatex
       geometry: left=0.5cm,right=0.5cm,top=1cm,bottom=2cm
 urlcolor: blue
 ---
@@ -803,18 +803,18 @@ table(sort(unique(ed_colnames$Name))==sort(unique(ed_attain$variable)))
 
 ed_attain2a <- left_join(ed_attain, ed_colnames, by = c("variable"="Name"))
 
-glimpse(ed_attain2)
+glimpse(ed_attain2a)
 ```
 
 ```{r}
 #identify empty and NA values
-colSums(ed_attain2 == "" | is.na(ed_attain2))
+colSums(ed_attain2a == "" | is.na(ed_attain2a))
 ```
 #### Clean and reshape data
 
 ```{r}
 # voteFIPS <- unique(voting_info_final_pivot$FIPS)
-demoFIPS <- unique(ed_attain2$GEOID)
+demoFIPS <- unique(ed_attain2a$GEOID)
 
 ed_attain2 <- ed_attain2a %>%
   filter(!GEOID %in% setdiff(demoFIPS, FIPS)) %>% #keep only the fips we have in the voting dataset
@@ -832,11 +832,11 @@ ed_attain3 <- ed_attain2 %>%
   
 length(unique(ed_attain3$GEOID))
 
-edcountystate <- ed_attain3 %>% 
-  select(GEOID,county, state) %>% 
-  distinct(GEOID,county,state) %>%
-  group_by(GEOID) %>%
-  summarise(count=n())
+# edcountystate <- ed_attain3 %>% 
+#   select(GEOID,county, state) %>% 
+#   distinct(GEOID,county,state) %>%
+#   group_by(GEOID) %>%
+#   summarise(count=n())
 
 ```
 
