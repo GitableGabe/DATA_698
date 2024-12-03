@@ -21,21 +21,32 @@ urlcolor: blue
 # Packages
 ```{r warning=FALSE, message=FALSE, results='hide'}
 #load libraries
-library(tidyverse)
-library(tidycensus)
-library(rvest)
-library(ggplot2)
-library(reshape2)
-library(corrplot)
 library(car)
+library(caret)
+library(corrplot)
+library(ggplot2)
+library(janitor)
 library(Hmisc)
 library(randomForest)
-library(caret)
-library(janitor)
+library(reshape2)
+library(rvest)
+library(tidyverse)
+library(tidycensus)
+```
+
+```{r}
+# Define the path to the Key folder
+key_file_path <- file.path(".", "Key", "api_key.txt")
+
+# Read the API key from the file
+api_key <- readLines(key_file_path, warn = FALSE)
+
+# Print the API key (for debugging purposes; avoid doing this in production)
+#cat("API Key:", api_key, "\n")
 ```
 
 ```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide'}
-census_api_key("8ae64973afa0ae475a345905a9db7a4b3f06e783", overwrite = TRUE, install = TRUE)
+census_api_key(api_key, overwrite = TRUE, install = TRUE)
 ```
 
 
@@ -791,18 +802,18 @@ table(sort(unique(ed_colnames$Name))==sort(unique(ed_attain$variable)))
 
 ed_attain2a <- left_join(ed_attain, ed_colnames, by = c("variable"="Name"))
 
-glimpse(ed_attain2)
+glimpse(ed_attain2a)
 ```
 
 ```{r}
 #identify empty and NA values
-colSums(ed_attain2 == "" | is.na(ed_attain2))
+colSums(ed_attain2a == "" | is.na(ed_attain2a))
 ```
 #### Clean and reshape data
 
 ```{r}
 # voteFIPS <- unique(voting_info_final_pivot$FIPS)
-demoFIPS <- unique(ed_attain2$GEOID)
+demoFIPS <- unique(ed_attain2a$GEOID)
 
 ed_attain2 <- ed_attain2a %>%
   filter(!GEOID %in% setdiff(demoFIPS, FIPS)) %>% #keep only the fips we have in the voting dataset
@@ -820,11 +831,11 @@ ed_attain3 <- ed_attain2 %>%
   
 length(unique(ed_attain3$GEOID))
 
-edcountystate <- ed_attain3 %>% 
-  select(GEOID,county, state) %>% 
-  distinct(GEOID,county,state) %>%
-  group_by(GEOID) %>%
-  summarise(count=n())
+# edcountystate <- ed_attain3 %>% 
+#   select(GEOID,county, state) %>% 
+#   distinct(GEOID,county,state) %>%
+#   group_by(GEOID) %>%
+#   summarise(count=n())
 
 ```
 
