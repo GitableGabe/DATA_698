@@ -34,8 +34,20 @@ library(caret)
 library(janitor)
 ```
 
+```{r}
+# Define the path to the Key folder
+key_file_path <- file.path(".", "Key", "api_key.txt")
+
+# Read the API key from the file
+api_key <- readLines(key_file_path, warn = FALSE)
+
+# Print the API key (for debugging purposes; avoid doing this in production)
+#cat("API Key:", api_key, "\n")
+```
+
 ```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide'}
-census_api_key("8ae64973afa0ae475a345905a9db7a4b3f06e783", overwrite = TRUE, install = TRUE)
+census_api_key(api_key, overwrite = TRUE, install = TRUE)
+# census_api_key("8ae64973afa0ae475a345905a9db7a4b3f06e783", overwrite = TRUE, install = TRUE)
 ```
 
 
