@@ -3,9 +3,6 @@ title: 'DATA 698: Masters Research Project'
 author: "Gabriella Martinez & Gabriel Campos"
 date: "Last edited `r format(Sys.time(), '%B %d, %Y')`"
 output:
-      pdf_document:
-        latex_engine: xelatex
-      html_notebook: default
       html_document:
         toc: yes
         toc_float: yes
@@ -13,6 +10,9 @@ output:
         highlight: kate
         font-family: "Arial"
         code_folding: show
+      html_notebook: default
+      pdf_document:
+        latex_engine: xelatex
       geometry: left=0.5cm,right=0.5cm,top=1cm,bottom=2cm
 urlcolor: blue
 ---
@@ -21,34 +21,21 @@ urlcolor: blue
 # Packages
 ```{r warning=FALSE, message=FALSE, results='hide'}
 #load libraries
-library(car)
-library(caret)
-library(corrplot)
-library(Hmisc)
-library(ggplot2)
-library(janitor)
-library(randomForest)
-library(reshape2)
-library(rvest)
 library(tidyverse)
 library(tidycensus)
+library(rvest)
+library(ggplot2)
+library(reshape2)
+library(corrplot)
+library(car)
+library(Hmisc)
+library(randomForest)
+library(caret)
+library(janitor)
 ```
-
-```{r, warning=FALSE}
-# Define the path to the Key folder
-key_file_path <- file.path(".", "Key", "api_key.txt")
-
-# Read the API key from the file
-api_key <- readLines(key_file_path, warn = FALSE)
-
-# Print the API key (for debugging purposes; avoid doing this in production)
-#cat("API Key:", api_key, "\n")
-
-```
-
 
 ```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide'}
-census_api_key("api_key", overwrite = TRUE, install = TRUE)
+census_api_key("8ae64973afa0ae475a345905a9db7a4b3f06e783", overwrite = TRUE, install = TRUE)
 ```
 
 
@@ -257,7 +244,7 @@ county_groups <- voting_info_df %>%
 
 county_groups
 ```
-###0000 just a marker, will be removed later
+#### Clean up
 
 ```{r}
 #remove the previous observations
@@ -813,7 +800,6 @@ colSums(ed_attain2 == "" | is.na(ed_attain2))
 ```
 #### Clean and reshape data
 
-###22222 just a marker, will be removed later
 ```{r}
 # voteFIPS <- unique(voting_info_final_pivot$FIPS)
 demoFIPS <- unique(ed_attain2$GEOID)
@@ -980,7 +966,7 @@ colSums(dem == "" | is.na(dem))
 #check for dupe, no dupe, but Puerto Rico needs to be filtered out
 unique(dem$state)
 ```
-###888 just a marker, will be removed later
+#### Clean up
 ```{r}
 dem <- dem %>% 
   filter(!str_detect(state, "Puerto Rico")) %>% 
@@ -1075,7 +1061,7 @@ table(predictions_2024) # Republican Party
 
 table(df_subset2$winning_party_binary_2020) #Democratic Party
 
-table(df_subset2$winning_party_binary_2016) #Republicn Party
+table(df_subset2$winning_party_binary_2016) #Republican Party
 
 ```
 The prediction results of the model show that the Republican Party would win the 2024 elections which is true to the outcome of our elections this year.
