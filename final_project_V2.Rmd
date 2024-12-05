@@ -20,7 +20,6 @@ output:
 urlcolor: blue
 ---
 
-
 # Packages
 ```{r warning=FALSE, message=FALSE, results='hide'}
 #load libraries
@@ -35,6 +34,9 @@ library(reshape2)
 library(rvest)
 library(tidyverse)
 library(tidycensus)
+library(httr)
+library(xml2)
+library(kableExtra)
 ```
 
 ```{r}
@@ -52,7 +54,6 @@ api_key <- readLines(api_key_file_path, warn = FALSE)
 census_api_key(api_key, overwrite = TRUE, install = TRUE)
 ```
 
-
 # Data Load
 
 ## Election Data
@@ -62,7 +63,6 @@ Data was source from [**Harvard Dataverse**](https://data.harvard.edu/dataverse)
 ```{r, echo=FALSE}
 git_url <- "https://raw.githubusercontent.com/gabbypaola/DATA698/refs/heads/main/data/"
 ```
-
 
 ```{r warning=FALSE}
 # Data sourced 
@@ -238,6 +238,8 @@ colSums(cens_cvap_df == "" | is.na(cens_cvap_df))
 vot_info_df <- left_join(elect_pivot_df, cens_cvap_df, by = c("FIPS", "year"))
 
 vot_info_df
+
+ls_states <- sort(str_to_title(unique(vot_info_df$state)))
 ```
 
 ```{r}
@@ -332,10 +334,12 @@ length(co_names)
 ```{r}
 vot_info_df %>% 
   group_by(year) %>% 
-  summarise(total_dem = sum(votes_dem),
-            total_gop = sum(votes_gop)) %>% 
+  summarise(total_dem = scales::comma(sum(votes_dem)),
+            total_gop = scales::comma(sum(votes_gop))) %>% 
   mutate(result = if_else(total_gop > total_dem,
-                          "Republican Party","Democratic Party"))
+                          "Republican Party","Democratic Party")) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_minimal()
 ```
 
 
@@ -360,20 +364,10 @@ length(unique(vot_info_df$state))
 ```
 
 ```{r}
-library(gt)
-
 # Assuming your data frame is `state_data`
-vot_info_df %>%
-  gt() %>%
-  tab_header(
-    title = "State Data Overview",
-    subtitle = "3-Election Summary"
-  ) %>%
-  cols_align(align = "center") %>%
-  fmt_number(columns = 3:6, decimals = 2) %>%  # Format numeric columns
-  tab_options(
-    table.width = pct(100)
-  )
+vot_info_df %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_minimal()
 
 ```
 
@@ -467,7 +461,9 @@ vot_info_fin %>%
                             `Democratic Party` == `Republican Party` ~
                               "Tie"
                             )
-         )
+         ) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_minimal()
 ```
 
 
@@ -1156,8 +1152,6 @@ Class error:
 For class 0: 0.0625% error.  
 For class 1: 0.0556% error.
 
-
-
 ### Evaluate
 ```{r}
 #evaluate
@@ -1189,17 +1183,80 @@ print(rf_cv2)
 ```{r}
 predictions_2024 <- predict(rf_model2, df_subset2)
 
-# predictions_2024$predicted_class <-  predictions_2024
-
 #demo = 0, rep = 1
 table(predictions_2024) # Republican Party
 
-table(df_subset2$winning_party_binary_2020) #Democratic Party
-
-table(df_subset2$winning_party_binary_2016) #Republican Party
+# table(df_subset2$winning_party_binary_2020) #Democratic Party
+# 
+# table(df_subset2$winning_party_binary_2016) #Republican Party
 
 ```
 The prediction results of the model show that the Republican Party would win the 2024 elections which is true to the outcome of our elections this year.
+
+## Model predictions by state
+```{r}
+#merge predictions back with original data 
+model_data3 <- model_data2
+
+model_data3$predicted_values2024 <- predictions_2024
+
+model_data3 <- model_data3 %>% 
+  mutate(winning_prediction_2024 = if_else(predictions_2024 == 0, "Democratic Party", "Republican Party"))
+
+state_predictions <- model_data3 %>% 
+  select(c(state, winning_prediction_2024))
+```
+
+
+## Actual election results by state
+```{r}
+# Specify the URL
+url <- "https://www.reuters.com/graphics/USA-ELECTION/RESULTS/zjpqnemxwvx/"
+
+response <- GET(url)
+
+# Parse the webpage content
+webpage <- read_html(content(response, as = "text"))
+
+# Extract the table(s)
+tables <- html_table(webpage, fill = TRUE)
+
+actual_results2024 <- rbind(tables[[1]],tables[[2]],tables[[3]],tables[[4]],tables[[5]])
+
+colnames(actual_results2024)[colnames(actual_results2024) == ""] <- "st_abbrv"
+
+actual_results2024_ <- actual_results2024 %>% 
+  filter(!st_abbrv == "") %>% 
+  mutate(st_abbrv = case_when(st_abbrv=="D.C." ~"District Of Columbia",
+                              st_abbrv == "Md." ~ "Maryland",
+                              st_abbrv == "Neb." ~ "Nebraska",
+                              st_abbrv == "N.C." ~ "North Carolina",
+                              st_abbrv == "N.D." ~ "North Dakota",
+                              st_abbrv == "N.H." ~ "New Hampshire",
+                              st_abbrv == "N.J." ~ "New Jersey",
+                              st_abbrv == "N.M." ~ "New Mexico",
+                              st_abbrv == "N.Y." ~ "New York",
+                              st_abbrv == "Nev." ~ "Nevada",
+                              st_abbrv == "Va." ~ "Virginia",
+                              st_abbrv == "Vt." ~ "Vermont",
+                              st_abbrv == "W.Va." ~ "West Virginia",
+                              st_abbrv == "Wash." ~ "Washington",
+                              TRUE ~ st_abbrv)) %>% 
+  arrange(st_abbrv) %>% 
+  mutate(State = ls_states,
+         Democrat = as.numeric(str_remove(Dem., "%"))/100,
+         Republican = as.numeric(str_remove(Rep., "%"))/100,
+         winning_party = if_else(Democrat>Republican, "Democratic Party","Republican Party")
+         )
+
+act_res24_tbl <- actual_results2024_ %>% 
+  select(c(State, Democrat, Republican, winning_party)) 
+
+act_res24_tbl %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_minimal()
+
+```
 
 
 <!--  -->
