@@ -45,7 +45,7 @@ api_key_file_path <- file.path(".", "Key", "api_key.txt")
 api_key <- readLines(api_key_file_path, warn = FALSE)
 
 # Print the API key (for debugging purposes; avoid doing this in production)
-#cat("API Key:", api_key, "\n")
+cat("API Key:", api_key, "\n")
 ```
 
 ```{r echo=FALSE, warning=FALSE, message=FALSE, results='hide'}
