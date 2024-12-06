@@ -1201,10 +1201,10 @@ model_data3 <- model_data2
 model_data3$predicted_values2024 <- predictions_2024
 
 model_data3 <- model_data3 %>% 
-  mutate(winning_prediction_2024 = if_else(predictions_2024 == 0, "Democratic Party", "Republican Party"))
+  mutate(prediction_2024 = if_else(predictions_2024 == 0, "Democratic Party", "Republican Party"))
 
 state_predictions <- model_data3 %>% 
-  select(c(state, winning_prediction_2024))
+  select(c(state, prediction_2024))
 
 state_predictions%>% 
   kableExtra::kable() %>% 
@@ -1225,13 +1225,38 @@ webpage <- read_html(content(response, as = "text"))
 # Extract the table(s)
 tables <- html_table(webpage, fill = TRUE)
 
-actual_results2024 <- rbind(tables[[1]],tables[[2]],tables[[3]],tables[[4]],tables[[5]])
+tbl1 <- tables[[1]]  
+colnames(tbl1)[colnames(tbl1) == ""] <- "st_abbrv"
+tbl1 <- tbl1 %>% 
+  mutate(type="Solid Democrat")
 
-colnames(actual_results2024)[colnames(actual_results2024) == ""] <- "st_abbrv"
+tbl2 <- tables[[2]]
+colnames(tbl2)[colnames(tbl2) == ""] <- "st_abbrv"
+tbl2 <- tbl2 %>% 
+  mutate(type="Lean Democrat")
+
+tbl3 <- tables[[3]]
+colnames(tbl3)[colnames(tbl3) == ""] <- "st_abbrv"
+tbl3 <- tbl3 %>% 
+  mutate(type="Competitive")
+
+tbl4 <- tables[[4]]
+colnames(tbl4)[colnames(tbl4) == ""] <- "st_abbrv"
+tbl4 <- tbl4 %>% 
+  mutate(type="Lean Republican")
+
+tbl5 <- tables[[5]]
+colnames(tbl5)[colnames(tbl5) == ""] <- "st_abbrv"
+tbl5 <- tbl5 %>% 
+  mutate(type="Republican")
+
+actual_results2024 <- rbind(tbl1, tbl2, tbl3, tbl4, tbl5)
+
+# colnames(actual_results2024)[colnames(actual_results2024) == ""] <- "st_abbrv"
 
 actual_results2024_ <- actual_results2024 %>% 
   filter(!st_abbrv == "") %>% 
-  mutate(st_abbrv = case_when(st_abbrv=="D.C." ~"District Of Columbia",
+  mutate(st_abbrv2 = case_when(st_abbrv=="D.C." ~ "District Of Columbia",
                               st_abbrv == "Md." ~ "Maryland",
                               st_abbrv == "Neb." ~ "Nebraska",
                               st_abbrv == "N.C." ~ "North Carolina",
@@ -1246,20 +1271,48 @@ actual_results2024_ <- actual_results2024 %>%
                               st_abbrv == "W.Va." ~ "West Virginia",
                               st_abbrv == "Wash." ~ "Washington",
                               TRUE ~ st_abbrv)) %>% 
-  arrange(st_abbrv) %>% 
+  arrange(st_abbrv2) %>% 
   mutate(State = ls_states,
          Democrat = as.numeric(str_remove(Dem., "%"))/100,
          Republican = as.numeric(str_remove(Rep., "%"))/100,
-         winning_party = if_else(Democrat>Republican, "Democratic Party","Republican Party")
+         actual_2024 = if_else(Democrat>Republican, "Democratic Party","Republican Party")
          )
 
 act_res24_tbl <- actual_results2024_ %>% 
-  select(c(State, Democrat, Republican, winning_party)) 
+  select(c(State, Democrat, Republican, type, actual_2024)) 
 
-act_res24_tbl %>% 
+act_vs_res <- left_join(act_res24_tbl, state_predictions, join_by(State==state))
+
+act_vs_res %>% 
   kableExtra::kable() %>% 
   kableExtra::kable_minimal()
 
+```
+
+
+```{r}
+act_vs_res2 <- act_vs_res %>% 
+  drop_na(prediction_2024) %>% 
+  mutate(prediction_2024 = as.factor(prediction_2024),
+         actual_2024 = as.factor(actual_2024))
+
+# Create confusion matrix
+conf_matrix <- confusionMatrix(act_vs_res2$prediction_2024, act_vs_res2$actual_2024)
+
+# Extract the confusion matrix table
+cm_table <- as.data.frame(conf_matrix$table)
+
+# Plot confusion matrix using ggplot2
+ggplot(cm_table, aes(x = Prediction, y = Reference, fill = Freq)) +
+  geom_tile(color = "white") +
+  scale_fill_gradient(low = "white", high = "steelblue") +
+  geom_text(aes(label = Freq), vjust = 1) +
+  theme_minimal() +
+  labs(
+    title = "2024 Election results Confusion Matrix",
+    x = "Predicted",
+    y = "Actual"
+  )
 ```
 
 
