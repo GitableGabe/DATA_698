@@ -190,8 +190,9 @@ git_url<-"https://raw.githubusercontent.com/GitableGabe/DATA_698/refs/heads/main
 #/cvap.2010.html#list-tab-1518558936 (2008)
 cens_cvap2008 <- 
   read_csv(paste0(git_url,
-                  "CountyCVAP_2006-2010.csv",
-                  "?token=GHSAT0AAAAAACXYKDAYQCHUVJY2V6BVWU7SZXPAZJQ")) %>% 
+                  "CountyCVAP_2006-2010.csv"
+                  #,"?token=GHSAT0AAAAAACXYKDAYQCHUVJY2V6BVWU7SZXPAZJQ"
+                  )) %>% 
   rename_with(tolower) %>% 
   mutate(year=2008)
 
@@ -199,8 +200,9 @@ cens_cvap2008 <-
 #/cvap.2014.html#list-tab-1518558936 (2012)
 cens_cvap2012 <- 
   read_csv(paste0(git_url,
-           "CountyCVAP_2010-2014.csv",
-           "?token=GHSAT0AAAAAACXYKDAYHOL27SGWSEL2AS6IZXPAYSQ")) %>% 
+           "CountyCVAP_2010-2014.csv"
+           #,"?token=GHSAT0AAAAAACXYKDAYHOL27SGWSEL2AS6IZXPAYSQ"
+           )) %>% 
   rename_with(tolower) %>% 
   mutate(year=2012)
 
@@ -208,16 +210,18 @@ cens_cvap2012 <-
 #/cvap/2014-2018-CVAP.html (2016)
 cens_cvap2016 <- 
   read_csv(paste0(git_url,
-                  "CountyCVAP_2014-2018.csv",
-                  "?token=GHSAT0AAAAAACXYKDAZJU7ABMJMRNP5WOSIZXPATUQ")) %>% 
+                  "CountyCVAP_2014-2018.csv"
+                  #,"?token=GHSAT0AAAAAACXYKDAZJU7ABMJMRNP5WOSIZXPATUQ"
+                  )) %>% 
   mutate(year=2016)
 
 #https://www.census.gov/programs-surveys/decennial-census/about/voting-rights
 #/cvap/2017-2021-CVAP.html (2020)
 cens_cvap2020 <- 
   read_csv(paste0(git_url,
-                  "CountyCVAP_2017-2021.csv",
-                  "?token=GHSAT0AAAAAACXYKDAYJWVR6SZPSH4NRMSSZXPASSQ")) %>% 
+                  "CountyCVAP_2017-2021.csv"
+                  #,"?token=GHSAT0AAAAAACXYKDAYJWVR6SZPSH4NRMSSZXPASSQ"
+                  )) %>% 
   mutate(year=2020) 
 
 cens_cvap_df <- rbind(cens_cvap2008,
@@ -1281,13 +1285,23 @@ actual_results2024_ <- actual_results2024 %>%
 act_res24_tbl <- actual_results2024_ %>% 
   select(c(State, Democrat, Republican, type, actual_2024)) 
 
-act_vs_res <- left_join(act_res24_tbl, state_predictions, join_by(State==state))
+act_vs_res <- left_join(act_res24_tbl, state_predictions, join_by(State==state)) %>% 
+  mutate(correctly_predicted = actual_2024==prediction_2024)
 
 act_vs_res %>% 
   kableExtra::kable() %>% 
   kableExtra::kable_minimal()
 
 ```
+
+```{r}
+#incorrect predictions
+act_vs_res %>% 
+  filter(correctly_predicted== FALSE)%>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_minimal()
+```
+
 
 
 ```{r}
