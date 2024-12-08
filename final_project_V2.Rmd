@@ -1294,15 +1294,6 @@ act_vs_res %>%
 
 ```
 
-```{r}
-#incorrect predictions
-act_vs_res %>% 
-  filter(correctly_predicted== FALSE)%>% 
-  kableExtra::kable() %>% 
-  kableExtra::kable_minimal()
-```
-
-
 
 ```{r}
 act_vs_res2 <- act_vs_res %>% 
@@ -1327,6 +1318,14 @@ ggplot(cm_table, aes(x = Prediction, y = Reference, fill = Freq)) +
     x = "Predicted",
     y = "Actual"
   )
+```
+
+```{r}
+#incorrect predictions
+act_vs_res %>% 
+  filter(correctly_predicted== FALSE)%>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_minimal()
 ```
 
 
