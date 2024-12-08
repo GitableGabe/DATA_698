@@ -704,6 +704,51 @@ This Random Forest model shows good performance on the dataset (up to 93.3% accu
 
 If deployed, the model should generalize well given the robustness of Random Forest and the cross-validation methodology used.
 
+
+### Feature Importance
+
+```{r}
+# Variable importance
+#varImpPlot(rf_model)
+ImpData <- as.data.frame(importance(rf_model))
+ImpData$Var.Names <- row.names(ImpData)
+
+#reorder variables based on MeanDecreaseAccuracy to display in descending order
+ImpData$Var.Names <- factor(ImpData$Var.Names, levels = ImpData$Var.Names[order(ImpData$MeanDecreaseAccuracy, decreasing = FALSE)])
+
+ggplot(ImpData, aes(x=Var.Names, y=MeanDecreaseAccuracy)) +
+  geom_segment(aes(x=Var.Names, xend=Var.Names, y=0, yend=MeanDecreaseAccuracy), color="skyblue") +
+  #geom_point(aes(size = IncNodePurity), color="steelblue", alpha=1) +
+  theme_light() +
+  coord_flip() +
+  theme(
+    legend.position = "bottom",
+    panel.grid.major.y = element_blank(),
+    panel.border = element_blank(),
+    axis.ticks.y = element_blank()
+  )
+
+```
+Mean Decrease Accuracy (MDA) is another metric used in Random Forest models to measure the importance of attributes. It quantifies how much the model's predictive accuracy decreases when a particular attribute's values are randomly permuted. The attributes with the lowest mean decrease accuracy are cvap_est_2016, voter_turnout_2012, totalvotes_2008, totalvotes_2016, and totalvotes_2012.
+
+```{r}
+#reorder variables based on MeanDecreaseGini to display in descending order
+ImpData$Var.Names2 <- factor(ImpData$Var.Names, levels = ImpData$Var.Names[order(ImpData$MeanDecreaseGini, decreasing = FALSE)])
+
+ggplot(ImpData, aes(x=Var.Names2, y=MeanDecreaseGini)) +
+  geom_segment(aes(x=Var.Names2, xend=Var.Names2, y=0, yend=MeanDecreaseGini), color="skyblue") +
+  #geom_point(aes(size = IncNodePurity), color="steelblue", alpha=1) +
+  theme_light() +
+  coord_flip() +
+  theme(
+    legend.position = "bottom",
+    panel.grid.major.y = element_blank(),
+    panel.border = element_blank(),
+    axis.ticks.y = element_blank()
+  )
+```
+A high Mean Decrease Gini value for a variable indicates that it is an important attribute in the model. It allows for feature ranking and selection, helping to identify which variables most significantly impact the model's output. In our model, the top 5 attributes are state, rawdiff_dem_vs_gop_2020, pctdiff_dem_vs_gop_2020, rawdiff_dem_vs_gop_2016, pctdiff_dem_vs_gop_2016.
+
 ## Demographic data
 
 ```{r, warning= FALSE, message=FALSE, results='hide'}
@@ -1182,6 +1227,53 @@ rf_cv2 <- train(winning_party_binary_2020 ~ .,
 
 print(rf_cv2)
 ```
+
+### Feature Importance
+
+```{r}
+# Variable importance
+
+ImpData2 <- as.data.frame(importance(rf_model2))
+ImpData2$Var.Names <- row.names(ImpData2)
+
+#reorder variables based on MeanDecreaseAccuracy to display in descending order
+ImpData2$Var.Names <- factor(ImpData2$Var.Names, levels = ImpData2$Var.Names[order(ImpData2$MeanDecreaseAccuracy, decreasing = FALSE)])
+
+ggplot(ImpData2, aes(x=Var.Names, y=MeanDecreaseAccuracy)) +
+  geom_segment(aes(x=Var.Names, xend=Var.Names, y=0, yend=MeanDecreaseAccuracy), color="skyblue") +
+  #geom_point(aes(size = IncNodePurity), color="steelblue", alpha=1) +
+  theme_light() +
+  coord_flip() +
+  theme(
+    legend.position = "bottom",
+    panel.grid.major.y = element_blank(),
+    panel.border = element_blank(),
+    axis.ticks.y = element_blank()
+  )
+
+```
+
+The attributes with the lowest mean decrease accuracy in our second model are x2020_high_school_graduate_includes_equivalency, x2020_65_years_and_over, x2012_some_college_no_degree, voter_turnout_2008, and x2016_male.
+
+
+```{r}
+#reorder variables based on MeanDecreaseGini to display in descending order
+ImpData2$Var.Names2 <- factor(ImpData2$Var.Names, levels = ImpData2$Var.Names[order(ImpData2$MeanDecreaseGini, decreasing = FALSE)])
+
+ggplot(ImpData2, aes(x=Var.Names2, y=MeanDecreaseGini)) +
+  geom_segment(aes(x=Var.Names2, xend=Var.Names2, y=0, yend=MeanDecreaseGini), color="skyblue") +
+  #geom_point(aes(size = IncNodePurity), color="steelblue", alpha=1) +
+  theme_light() +
+  coord_flip() +
+  theme(
+    legend.position = "bottom",
+    panel.grid.major.y = element_blank(),
+    panel.border = element_blank(),
+    axis.ticks.y = element_blank()
+  )
+```
+
+In our second model, the top 5 attributes are state, rawdiff_dem_vs_gop_2016, pctdiff_dem_vs_gop_2020, pctdiff_dem_vs_gop_2016, voter_turnout_dem_2020.
 
 # Prediction
 ```{r}
