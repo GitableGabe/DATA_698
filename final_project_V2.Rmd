@@ -549,7 +549,7 @@ vot_info_fin_pivot %>%
 
 ## Distribution of variables
 
-```{r}
+```{r, fig.height=9, fig.width=15}
 # Histograms
 vot_info_fin_pivot %>%
   keep(is.numeric) %>% 
@@ -586,7 +586,7 @@ vot_info_fin %>%
 ## Detect Multicollinearity Using Correlation Matrix
 
 
-```{r}
+```{r, fig.height=9, fig.width=12}
 
 cor_df <- vot_info_fin_pivot %>% 
   select(-c(state, starts_with("winning"))) %>% 
@@ -599,7 +599,8 @@ cor_matrix <- cor(cor_df)
 corrplot.mixed(cor(cor_df %>% keep(is.numeric)),
                tl.col = 'black', tl.pos = 'lt',
                upper = "number", lower="shade",
-               shade.col=NA, tl.srt=90 )
+               shade.col=NA, tl.srt=90,
+               number.cex=0.7,tl.cex=0.8)
 
 ```
 
@@ -714,10 +715,16 @@ ImpData <- as.data.frame(importance(rf_model))
 ImpData$Var.Names <- row.names(ImpData)
 
 #reorder variables based on MeanDecreaseAccuracy to display in descending order
-ImpData$Var.Names <- factor(ImpData$Var.Names, levels = ImpData$Var.Names[order(ImpData$MeanDecreaseAccuracy, decreasing = FALSE)])
+ImpData$Var.Names <- 
+  factor(ImpData$Var.Names,
+         levels = ImpData$Var.Names[order(ImpData$MeanDecreaseAccuracy,
+                                          decreasing = FALSE)])
 
 ggplot(ImpData, aes(x=Var.Names, y=MeanDecreaseAccuracy)) +
-  geom_segment(aes(x=Var.Names, xend=Var.Names, y=0, yend=MeanDecreaseAccuracy), color="skyblue") +
+  geom_segment(aes(x=Var.Names, xend=Var.Names, y=0, yend=MeanDecreaseAccuracy),
+               color="skyblue",
+               size = 2
+               ) +
   #geom_point(aes(size = IncNodePurity), color="steelblue", alpha=1) +
   theme_light() +
   coord_flip() +
@@ -736,7 +743,9 @@ Mean Decrease Accuracy (MDA) is another metric used in Random Forest models to m
 ImpData$Var.Names2 <- factor(ImpData$Var.Names, levels = ImpData$Var.Names[order(ImpData$MeanDecreaseGini, decreasing = FALSE)])
 
 ggplot(ImpData, aes(x=Var.Names2, y=MeanDecreaseGini)) +
-  geom_segment(aes(x=Var.Names2, xend=Var.Names2, y=0, yend=MeanDecreaseGini), color="skyblue") +
+  geom_segment(aes(x=Var.Names2, xend=Var.Names2, y=0, yend=MeanDecreaseGini),
+               color="skyblue",
+               size = 2) +
   #geom_point(aes(size = IncNodePurity), color="steelblue", alpha=1) +
   theme_light() +
   coord_flip() +
@@ -1230,7 +1239,7 @@ print(rf_cv2)
 
 ### Feature Importance
 
-```{r}
+```{r, fig.height=12}
 # Variable importance
 
 ImpData2 <- as.data.frame(importance(rf_model2))
@@ -1240,7 +1249,10 @@ ImpData2$Var.Names <- row.names(ImpData2)
 ImpData2$Var.Names <- factor(ImpData2$Var.Names, levels = ImpData2$Var.Names[order(ImpData2$MeanDecreaseAccuracy, decreasing = FALSE)])
 
 ggplot(ImpData2, aes(x=Var.Names, y=MeanDecreaseAccuracy)) +
-  geom_segment(aes(x=Var.Names, xend=Var.Names, y=0, yend=MeanDecreaseAccuracy), color="skyblue") +
+  geom_segment(aes(x=Var.Names, xend=Var.Names, y=0, yend=MeanDecreaseAccuracy),
+               color="skyblue",
+               size = 2
+               ) +
   #geom_point(aes(size = IncNodePurity), color="steelblue", alpha=1) +
   theme_light() +
   coord_flip() +
@@ -1256,12 +1268,18 @@ ggplot(ImpData2, aes(x=Var.Names, y=MeanDecreaseAccuracy)) +
 The attributes with the lowest mean decrease accuracy in our second model are x2020_high_school_graduate_includes_equivalency, x2020_65_years_and_over, x2012_some_college_no_degree, voter_turnout_2008, and x2016_male.
 
 
-```{r}
+```{r, fig.height=12}
 #reorder variables based on MeanDecreaseGini to display in descending order
-ImpData2$Var.Names2 <- factor(ImpData2$Var.Names, levels = ImpData2$Var.Names[order(ImpData2$MeanDecreaseGini, decreasing = FALSE)])
+ImpData2$Var.Names2 <- 
+  factor(ImpData2$Var.Names,
+         levels = ImpData2$Var.Names[order(ImpData2$MeanDecreaseGini,
+                                           decreasing = FALSE)])
 
 ggplot(ImpData2, aes(x=Var.Names2, y=MeanDecreaseGini)) +
-  geom_segment(aes(x=Var.Names2, xend=Var.Names2, y=0, yend=MeanDecreaseGini), color="skyblue") +
+  geom_segment(aes(x=Var.Names2, xend=Var.Names2, y=0, yend=MeanDecreaseGini),
+               color="skyblue",
+               size = 2
+               ) +
   #geom_point(aes(size = IncNodePurity), color="steelblue", alpha=1) +
   theme_light() +
   coord_flip() +
