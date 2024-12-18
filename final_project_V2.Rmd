@@ -3,20 +3,23 @@ title: 'DATA 698: Masters Research Project'
 author: "Gabriella Martinez & Gabriel Campos"
 date: "Last edited `r format(Sys.time(), '%B %d, %Y')`"
 output:
-      pdf_document:
-        latex_engine: xelatex
-        toc: true
-        toc_depth: 5
-      html_notebook: default
-      html_document:
-        toc: true
-        toc_depth: 5
-        toc_float: yes
-        theme: yeti
-        highlight: kate
-        font-family: "Arial"
-        code_folding: show
-      geometry: left=0.5cm,right=0.5cm,top=1cm,bottom=2cm
+  html_document:
+    toc: true
+    toc_depth: 5
+    toc_float: true
+    theme: yeti
+    highlight: kate
+    font-family: Arial
+    code_folding: show
+  html_notebook: default
+  word_document:
+    toc: true
+    toc_depth: '5'
+  geometry: left=0.5cm,right=0.5cm,top=1cm,bottom=2cm
+  pdf_document:
+    latex_engine: xelatex
+    toc: true
+    toc_depth: 5
 urlcolor: blue
 ---
 
@@ -26,6 +29,7 @@ urlcolor: blue
 library(car)
 library(caret)
 library(corrplot)
+library(DT)
 library(dplyr)
 library(ggplot2)
 library(janitor)
@@ -99,9 +103,10 @@ elect_df %>%
   filter(is.na(county_fips)) %>%
   select(state_po, county_name, county_fips) %>%
   distinct() %>%
-  kable()%>%
+  kable(caption = "Counties with NA FIPS")%>%
   kable_classic()
 ```
+
 
 
 ```{r}
@@ -117,9 +122,11 @@ elect_nas_df <- elect_data_df %>%
 
 elect_nas_df %>% 
   count(state_abbr, county_name)%>%
-  kable%>%
+  kable(caption = "Vote Counts by Party")%>%
   kable_minimal()
 ```
+
+
 
 The remaining **NA** values in the **FIPS** column are votes assigned at a state-wide level, not to any count. The *"MAINE UOCAVA"* county record for the state of Maine represents the count of votes from Uniformed Service & Overseas [**(UOCAVA)**](https://www.maine.gov/sos/cec/elec/voter-info/uocava.html) Voters. The ["STATEWIDE WRITEIN"](https://www.usa.gov/write-in-candidates) for Connecticut represents the count of votes for self-selected candidates not on the presidential ballot. It is unclear what the *"FEDERAL PRECINCT"* for the state of Rhode Island exactly represents. Either way, our analysis will be conducted at the county level, so these records cannot be used. 
 
@@ -208,7 +215,7 @@ git_url<-"https://raw.githubusercontent.com/GitableGabe/DATA_698/refs/heads/main
 cens_cvap2008 <- 
   read_csv(paste0(git_url,
                   "CountyCVAP_2006-2010.csv"
-                  #,"?token=GHSAT0AAAAAACXYKDAYQCHUVJY2V6BVWU7SZXPAZJQ"
+                  # ,"?token=GHSAT0AAAAAACXYKDAYQCHUVJY2V6BVWU7SZXPAZJQ"
                   )) %>% 
   rename_with(tolower) %>% 
   mutate(year=2008)
@@ -261,7 +268,17 @@ vot_info_df <- left_join(elect_pivot_df, cens_cvap_df, by = c("FIPS", "year"))
 vot_info_df
 
 ls_states <- sort(str_to_title(unique(vot_info_df$state)))
+
 ```
+
+```{r}
+kbl(vot_info_df[1:10, ], 
+    caption = "Sample of Electoral Data", 
+    format = "html", 
+    escape = FALSE) %>%
+  kable_minimal()
+```
+
 
 ```{r}
 #identify empty and NA values
@@ -275,12 +292,12 @@ vot_info_NAs_df <- vot_info_df %>%
 vot_info_NAs_df%>%
   group_by(year)%>%
   summarise(count = n())%>%
-  kable()
+  kable(caption = "NAs in CVAP estimates")
 ```
 
 ```{r, fig.width=7}
-vot_info_NAs_df%>%
-  kable()
+# vot_info_NAs_df%>%
+#   kable()
 ```
 
 ```{r}
@@ -301,8 +318,9 @@ vot_info_NAs_2df
 ```{r}
 vot_info_NAs_2df %>%
   filter(state == "ALASKA") %>%
-  distinct(county_name,FIPS) %>% 
-  arrange(FIPS)
+  distinct(state,county_name,FIPS) %>% 
+  arrange(FIPS)%>%
+  kable(caption = "Alaska County Names and FIPS")
 ```
 
 
@@ -321,7 +339,8 @@ vot_info_clean_df <- vot_info_df %>%
   filter(FIPS %in% c('29095', '36000', '51019', '51515')) %>% 
   arrange(year, FIPS)
 
-vot_info_clean_df
+head(vot_info_clean_df,10)%>%
+  kable(caption = "Sample of Duplicate FIPS COde Entries for Selected Counties" )
 ```
 
 ```{r}
@@ -344,7 +363,9 @@ vot_co_grps_df <- vot_info_df %>%
   mutate(geoname = case_when(state == "MISSOURI" ~ "Jackson County, Missouri",
                              state == "VIRGINIA" ~ "Bedford County, Virginia"))
 
-vot_co_grps_df
+vot_co_grps_df %>%
+  kable(caption = "Duplicate FIPS Code Entries for Selected Counties")
+  
 ```
 #### Clean up
 
@@ -379,8 +400,9 @@ vot_info_df %>%
             total_gop = scales::comma(sum(votes_gop))) %>% 
   mutate(result = if_else(total_gop > total_dem,
                           "Republican Party","Democratic Party")) %>% 
-  kableExtra::kable() %>% 
-  kableExtra::kable_minimal()
+  kable(caption = "Aggregate Totals of Democratic and Republican Votes") %>%
+  kable_minimal() %>%
+  kableExtra::footnote(general = "Note. This table reflects the popular vote and not the electoral vote.")
 ```
 
 
@@ -407,8 +429,8 @@ length(unique(vot_info_df$state))
 ```{r}
 # Assuming your data frame is `state_data`
 vot_info_df %>% 
-  kableExtra::kable() %>% 
-  kableExtra::kable_minimal()
+  kable(caption = "Aggregate Totals of Democratic and Republican Votes by State") %>% 
+  kable_classic()
 
 ```
 
@@ -654,6 +676,9 @@ VIF > 5 (or sometimes > 10): High multicollinearity, and you may want to conside
 vif_data <- vif(lm(totalvotes_2020 ~ ., data=cor_df))
 # Fit a linear model and calculate VIF
 print(vif_data)
+vif_data %>%
+  kable(caption = "Variance Inflation Factor (VIF) Results")%>%
+  kable_classic()
 ```
 
 ```{r}
@@ -695,6 +720,11 @@ rf_model <- randomForest(winning_party_binary_2020 ~ .,
 print(rf_model)
     
 ```
+
+```{r}
+train_indices
+```
+
 
 This is the out-of-bag (OOB) error estimate, which is an internal error estimate in random forests. In this case, the OOB error rate is 2.86%, meaning that the model predicts strongly on the training data based on the OOB observations. Overall, the model proves to be highly accurate with almost perfect results and minimal overfitting. 
 
