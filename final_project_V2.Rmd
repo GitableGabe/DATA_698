@@ -3,6 +3,11 @@ title: 'DATA 698: Masters Research Project'
 author: "Gabriella Martinez & Gabriel Campos"
 date: "Last edited `r format(Sys.time(), '%B %d, %Y')`"
 output:
+      pdf_document:
+        latex_engine: xelatex
+        toc: true
+        toc_depth: 5
+      html_notebook: default
       html_document:
         toc: true
         toc_depth: 5
@@ -11,11 +16,6 @@ output:
         highlight: kate
         font-family: "Arial"
         code_folding: show
-      html_notebook: default
-      pdf_document:
-        latex_engine: xelatex
-        toc: true
-        toc_depth: 5
       geometry: left=0.5cm,right=0.5cm,top=1cm,bottom=2cm
 urlcolor: blue
 ---
@@ -26,6 +26,7 @@ urlcolor: blue
 library(car)
 library(caret)
 library(corrplot)
+library(dplyr)
 library(ggplot2)
 library(janitor)
 library(Hmisc)
@@ -74,6 +75,14 @@ elect_df <- read_csv(paste0(git_url,"countypres_2000-2020.csv"))
 #glimpse(elections)
 ```
 
+```{r}
+elect_df%>%
+  group_by(party)%>%
+  summarise(count = n())%>%
+  kable()
+```
+
+
 ### Data Cleaning (Elections)
 
 ```{r}
@@ -89,7 +98,9 @@ elect_df %>%
 elect_df %>%
   filter(is.na(county_fips)) %>%
   select(state_po, county_name, county_fips) %>%
-  distinct()
+  distinct() %>%
+  kable()%>%
+  kable_classic()
 ```
 
 
@@ -105,7 +116,9 @@ elect_nas_df <- elect_data_df %>%
   filter(is.na(FIPS))
 
 elect_nas_df %>% 
-  count(state_abbr, county_name) 
+  count(state_abbr, county_name)%>%
+  kable%>%
+  kable_minimal()
 ```
 
 The remaining **NA** values in the **FIPS** column are votes assigned at a state-wide level, not to any count. The *"MAINE UOCAVA"* county record for the state of Maine represents the count of votes from Uniformed Service & Overseas [**(UOCAVA)**](https://www.maine.gov/sos/cec/elec/voter-info/uocava.html) Voters. The ["STATEWIDE WRITEIN"](https://www.usa.gov/write-in-candidates) for Connecticut represents the count of votes for self-selected candidates not on the presidential ballot. It is unclear what the *"FEDERAL PRECINCT"* for the state of Rhode Island exactly represents. Either way, our analysis will be conducted at the county level, so these records cannot be used. 
@@ -165,6 +178,10 @@ elect_pivot_df <- elect_cand_vt_df %>%
   rename(votes_dem = DEMOCRAT,  votes_gop = REPUBLICAN
          #votes_other = OTHER,votes_grn = GREEN, votes_lib = LIBERTARIAN
          )
+
+head(elect_pivot_df)%>%
+  kable%>%
+  kable_classic()
 ```
 
 
@@ -252,9 +269,21 @@ colSums(vot_info_df == "" | is.na(vot_info_df))
 
 vot_info_NAs_df <- vot_info_df %>% 
   filter(is.na(geoname), is.na(cvap_est))
+```
 
-vot_info_NAs_df
+```{r}
+vot_info_NAs_df%>%
+  group_by(year)%>%
+  summarise(count = n())%>%
+  kable()
+```
 
+```{r, fig.width=7}
+vot_info_NAs_df%>%
+  kable()
+```
+
+```{r}
 unique(vot_info_NAs_df$year)
 ```
 
@@ -268,6 +297,14 @@ vot_info_NAs_2df <- vot_info_df %>%
 
 vot_info_NAs_2df
 ```
+
+```{r}
+vot_info_NAs_2df %>%
+  filter(state == "ALASKA") %>%
+  distinct(county_name,FIPS) %>% 
+  arrange(FIPS)
+```
+
 
 ```{r}
 vot_info_df <- vot_info_df %>%
