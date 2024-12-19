@@ -20,10 +20,12 @@ output:
     latex_engine: xelatex
     toc: true
     toc_depth: 5
+always_allow_html: true
 urlcolor: blue
 ---
 
 # Packages
+
 ```{r warning=FALSE, message=FALSE, results='hide'}
 #load libraries
 library(car)
@@ -34,6 +36,7 @@ library(dplyr)
 library(ggplot2)
 library(janitor)
 library(Hmisc)
+library(knitr)
 library(randomForest)
 library(reshape2)
 library(rvest)
@@ -198,6 +201,7 @@ About Census Bureau American Community Survey (ACS) data
 https://www.census.gov/programs-surveys/acs/guidance/estimates.html
 
 ### Citizen Voting Age Population
+
 Citizen Voting Age Population, Census Bureau population estimates generated using the American Community Survey
 
 
@@ -412,6 +416,7 @@ rm(list = ls(pattern = "^elect_|^cens_"))
 
 
 #### Aggregate by State
+
 ```{r}
 vot_info_df <- vot_info_df %>% 
   group_by(state, year) %>% 
@@ -510,6 +515,7 @@ rm(list = ls()[!grepl("vot_info_fin|^ls_", ls())])
 
 
 #### By State Result 
+
 ```{r}
 vot_info_fin %>% 
   group_by(year, winning_party) %>% 
@@ -694,7 +700,9 @@ Based on the VIF values shown in our exploratory data analysis, it is evident th
 Before modelling, we will exclude non-predictive columns like 'FIPS', 'county', and 'state' from the model and subset the data to only include relevant columns. The columns "FIPS", "county", and "state" are identifiers or categorical labels, not numerical values that contribute directly to predicting totalvotes_2020. Including categorical variables like "county" or "state" without encoding them properly can lead to high dimensionality when creating dummy variables.
 
 ## Base model
+
 ### Train
+
 ```{r}
 #train
 df_subset <- vot_info_fin_pivot %>% 
@@ -721,14 +729,52 @@ print(rf_model)
     
 ```
 
+
 ```{r}
-train_indices
+# Extract the confusion matrix from the rf_model
+temp_train_conf_matrix <- rf_model$confusion
+temp_train_conf_matrix_df <- as.data.frame.matrix(temp_train_conf_matrix)
+
+# Add row names as a new column for proper reshaping
+temp_train_conf_matrix_df$Actual <- rownames(temp_train_conf_matrix_df)
+
+# Reshape data for ggplot
+temp_train_conf_matrix_long <- melt(temp_train_conf_matrix_df, id.vars = "Actual", variable.name = "Predicted", value.name = "Count")
+
+# Extract and format the OOB error rate
+oob_error_rate <- round(tail(rf_model$err.rate[, "OOB"], n = 1) * 100, 2)
+
+# Plot confusion matrix heatmap
+ggplot(temp_train_conf_matrix_long, aes(x = Predicted, y = Actual, fill = Count)) +
+  geom_tile(color = "white") +
+  geom_text(aes(label = Count), color = "black", size = 5) +
+  scale_fill_gradient(low = "white", high = "steelblue") +
+  labs(
+    title = "Confusion Matrix for Training Data (Random Forest Base Model)",
+    subtitle = paste("Final OOB Error Rate:", oob_error_rate, "%"),
+    x = "Predicted Class",
+    y = "Actual Class",
+    fill = "Count"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    plot.subtitle = element_text(hjust = 0.5),
+    axis.text = element_text(size = 12),
+    axis.title = element_text(size = 14),
+    legend.title = element_text(size = 12)
+  )
+```
+
+```{r}
+rm(list = ls(pattern = "^temp_train"))
 ```
 
 
 This is the out-of-bag (OOB) error estimate, which is an internal error estimate in random forests. In this case, the OOB error rate is 2.86%, meaning that the model predicts strongly on the training data based on the OOB observations. Overall, the model proves to be highly accurate with almost perfect results and minimal overfitting. 
 
 ### Evaluate
+
 ```{r}
 #evaluate
 # Predictions on the test data
@@ -743,8 +789,44 @@ print(conf_matrix)
 
 ```
 
+```{r}
+# Create confusion matrix data
+temp_conf_matrix_data <- matrix(c(8, 0, 1, 6), nrow = 2, byrow = TRUE,
+                           dimnames = list("Actual" = c("0", "1"),
+                                           "Predicted" = c("0", "1")))
+temp_conf_matrix_df <- as.data.frame(as.table(temp_conf_matrix_data))
+
+# Add performance metrics for visualization
+temp_conf_accuracy <- 93.33  # Accuracy in percentage
+temp_conf_balanced_accuracy <- 94.44  # Balanced accuracy in percentage
+
+# Plot the confusion matrix heatmap
+ggplot(temp_conf_matrix_df, aes(x = Predicted, y = Actual, fill = Freq)) +
+  geom_tile(color = "white") +
+  geom_text(aes(label = Freq), size = 6) +
+  scale_fill_gradient(low = "white", high = "steelblue") +
+  labs(
+    title = "Confusion Matrix for Test Data (Random Forest Base Model)",
+    subtitle = paste("Accuracy:", temp_conf_accuracy, "% | Balanced Accuracy:", temp_conf_balanced_accuracy, "%"),
+    x = "Predicted Class",
+    y = "Actual Class",
+    fill = "Count"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 14),
+    plot.subtitle = element_text(hjust = 0.5, size = 12),
+    axis.text = element_text(size = 12),
+    axis.title = element_text(size = 14),
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 10)
+  )
+```
+
+
+
 ```{r, echo=FALSE}
-rm(list = ls(pattern = "^cor|df_subset|^conf"))
+rm(list = ls(pattern = "^temp_conf"))
 ```
 
 The test data correctly predicts Democrat Party for the 2020 election. 
@@ -759,6 +841,7 @@ Accuracy =8+6/(8+6+1+0) = 0.9333 or 93.33%
 This indicates the model correctly classified 93.33% of the test data.
 
 ### Checking for Overfitting
+
 ```{r}
 rf_cv <- train(winning_party_binary_2020 ~ .,
                data = train_data, method = "rf",
@@ -768,6 +851,18 @@ rf_cv <- train(winning_party_binary_2020 ~ .,
 print(rf_cv)
 ```
 
+```{r}
+temp_tuning_results <- rf_cv$results[, c("mtry", "Accuracy", "Kappa")]
+temp_tuning_results$Accuracy <- round(temp_tuning_results$Accuracy * 100, 2)
+
+# Create the table
+temp_tuning_results %>%
+  kable(col.names = c("mtry", "Accuracy (%)", "Kappa"),
+        caption = "Hyperparameter Tuning Results for Random Forest") %>%
+  kable_classic(full_width = FALSE, html_font = "Cambria")
+```
+
+
 This Random Forest model shows good performance on the dataset (up to 93.3% accuracy). The tuning process optimized the mtry parameter to balance model complexity and predictive performance. With mtry = 41, the model uses a significant portion of the predictors for splitting, which is likely appropriate given the relatively small number of samples.
 
 If deployed, the model should generalize well given the robustness of Random Forest and the cross-validation methodology used.
@@ -775,7 +870,7 @@ If deployed, the model should generalize well given the robustness of Random For
 
 ### Feature Importance
 
-```{r}
+```{r, fig.width= 9}
 # Variable importance
 #varImpPlot(rf_model)
 ImpData <- as.data.frame(importance(rf_model))
@@ -800,12 +895,13 @@ ggplot(ImpData, aes(x=Var.Names, y=MeanDecreaseAccuracy)) +
     panel.grid.major.y = element_blank(),
     panel.border = element_blank(),
     axis.ticks.y = element_blank()
-  )
+  )+
+  ggtitle("Feature Importance: Mean Decrease Accuracy for Random Forest Base Model")
 
 ```
 Mean Decrease Accuracy (MDA) is another metric used in Random Forest models to measure the importance of attributes. It quantifies how much the model's predictive accuracy decreases when a particular attribute's values are randomly permuted. The attributes with the lowest mean decrease accuracy are cvap_est_2016, voter_turnout_2012, totalvotes_2008, totalvotes_2016, and totalvotes_2012.
 
-```{r}
+```{r, fig.width=8}
 #reorder variables based on MeanDecreaseGini to display in descending order
 ImpData$Var.Names2 <- factor(ImpData$Var.Names, levels = ImpData$Var.Names[order(ImpData$MeanDecreaseGini, decreasing = FALSE)])
 
@@ -821,7 +917,8 @@ ggplot(ImpData, aes(x=Var.Names2, y=MeanDecreaseGini)) +
     panel.grid.major.y = element_blank(),
     panel.border = element_blank(),
     axis.ticks.y = element_blank()
-  )
+  )+
+  ggtitle("Feature Importance: Mean Decrease Gini for Random Forest Base Model")
 ```
 A high Mean Decrease Gini value for a variable indicates that it is an important attribute in the model. It allows for feature ranking and selection, helping to identify which variables most significantly impact the model's output. In our model, the top 5 attributes are state, rawdiff_dem_vs_gop_2020, pctdiff_dem_vs_gop_2020, rawdiff_dem_vs_gop_2016, pctdiff_dem_vs_gop_2016.
 
@@ -885,6 +982,7 @@ ed_attain2020 <- get_acs(
   mutate(year=2020)
 
 ```
+
 #### Get column names
 
 ```{r}
@@ -1013,6 +1111,7 @@ table(filteredtable16==filteredtable20)
 All column names are the same across all 4 election year Educational Attainment data.
 
 #### Combine and merge education data
+
 ```{r}
 ed_attain <- rbind(ed_attain2008, ed_attain2012, ed_attain2016, ed_attain2020)
 
@@ -1212,7 +1311,9 @@ colSums(dem == "" | is.na(dem))
 #check for dupe, no dupe, but Puerto Rico needs to be filtered out
 unique(dem$state)
 ```
+
 #### Clean up
+
 ```{r}
 dem <- dem %>% 
   filter(!str_detect(state, "Puerto Rico")) %>% 
@@ -1224,6 +1325,7 @@ vot_info_fin_pivot <- vot_info_fin_pivot %>%
 
 
 ### Merge with model data
+
 ```{r}
 model_data <- left_join(vot_info_fin_pivot, dem, join_by(state == state))
 
@@ -1238,8 +1340,85 @@ model_data2 <- model_data %>%
 dim(model_data2)
 ```
 
+```{r}
+# glimpse(model_data2)
+```
+
+
+```{r data-dictionary, echo=FALSE, message=FALSE, warning=FALSE}
+# Create a data dictionary
+data_dict <- data.frame(
+  Variable_Name = c(
+    "state",
+    "totalvotes_2008", "totalvotes_2012", "totalvotes_2016", "totalvotes_2020",
+    "cvap_est_2008", "cvap_est_2012", "cvap_est_2016", "cvap_est_2020",
+    "voter_turnout_2008", "voter_turnout_2012", "voter_turnout_2016", "voter_turnout_2020",
+    "voter_turnout_dem_2008", "voter_turnout_dem_2012", "voter_turnout_dem_2016", "voter_turnout_dem_2020",
+    "voter_turnout_gop_2008", "voter_turnout_gop_2012", "voter_turnout_gop_2016", "voter_turnout_gop_2020",
+    "pctdiff_dem_vs_gop_2008", "pctdiff_dem_vs_gop_2012", "pctdiff_dem_vs_gop_2016", "pctdiff_dem_vs_gop_2020",
+    "rawdiff_dem_vs_gop_2008", "rawdiff_dem_vs_gop_2012", "rawdiff_dem_vs_gop_2016", "rawdiff_dem_vs_gop_2020",
+    "winning_party_2008", "winning_party_2012", "winning_party_2016", "winning_party_2020"
+  ),
+  Description = c(
+    "State name or abbreviation.",
+    "Total votes cast in 2008.",
+    "Total votes cast in 2012.",
+    "Total votes cast in 2016.",
+    "Total votes cast in 2020.",
+    "Citizen voting age population estimate for 2008.",
+    "Citizen voting age population estimate for 2012.",
+    "Citizen voting age population estimate for 2016.",
+    "Citizen voting age population estimate for 2020.",
+    "Voter turnout as a proportion of CVAP in 2008.",
+    "Voter turnout as a proportion of CVAP in 2012.",
+    "Voter turnout as a proportion of CVAP in 2016.",
+    "Voter turnout as a proportion of CVAP in 2020.",
+    "Democratic voter turnout as a proportion of CVAP in 2008.",
+    "Democratic voter turnout as a proportion of CVAP in 2012.",
+    "Democratic voter turnout as a proportion of CVAP in 2016.",
+    "Democratic voter turnout as a proportion of CVAP in 2020.",
+    "Republican voter turnout as a proportion of CVAP in 2008.",
+    "Republican voter turnout as a proportion of CVAP in 2012.",
+    "Republican voter turnout as a proportion of CVAP in 2016.",
+    "Republican voter turnout as a proportion of CVAP in 2020.",
+    "Percentage difference between Democratic and Republican votes in 2008.",
+    "Percentage difference between Democratic and Republican votes in 2012.",
+    "Percentage difference between Democratic and Republican votes in 2016.",
+    "Percentage difference between Democratic and Republican votes in 2020.",
+    "Raw vote difference between Democratic and Republican votes in 2008.",
+    "Raw vote difference between Democratic and Republican votes in 2012.",
+    "Raw vote difference between Democratic and Republican votes in 2016.",
+    "Raw vote difference between Democratic and Republican votes in 2020.",
+    "Party with the majority of votes in 2008.",
+    "Party with the majority of votes in 2012.",
+    "Party with the majority of votes in 2016.",
+    "Party with the majority of votes in 2020."
+  ),
+  Data_Type = c(
+    "Character",
+    "Numeric", "Numeric", "Numeric", "Numeric",
+    "Numeric", "Numeric", "Numeric", "Numeric",
+    "Numeric", "Numeric", "Numeric", "Numeric",
+    "Numeric", "Numeric", "Numeric", "Numeric",
+    "Numeric", "Numeric", "Numeric", "Numeric",
+    "Numeric", "Numeric", "Numeric", "Numeric",
+    "Numeric", "Numeric", "Numeric", "Numeric",
+    "Character", "Character", "Character", "Character"
+  )
+)
+
+# Render the table
+kable(data_dict, "html") %>%
+  # kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+  kable_classic()
+
+```
+
+
 #Build Second Model 
+
 ### Train
+
 ```{r}
 #train
 df_subset2 <- model_data2 %>% 
@@ -1277,7 +1456,47 @@ Class error:
 For class 0: 0.0625% error.  
 For class 1: 0.0556% error.
 
+```{r}
+# Extract the confusion matrix from the rf_model
+temp_train_conf_matrix <- rf_model2$confusion
+temp_train_conf_matrix_df <- as.data.frame.matrix(temp_train_conf_matrix)
+
+# Add row names as a new column for proper reshaping
+temp_train_conf_matrix_df$Actual <- rownames(temp_train_conf_matrix_df)
+
+# Reshape data for ggplot
+temp_train_conf_matrix_long <- melt(temp_train_conf_matrix_df, id.vars = "Actual", variable.name = "Predicted", value.name = "Count")
+
+# Extract and format the OOB error rate
+oob_error_rate <- round(tail(rf_model$err.rate[, "OOB"], n = 1) * 100, 2)
+
+# Plot confusion matrix heatmap
+ggplot(temp_train_conf_matrix_long, aes(x = Predicted, y = Actual, fill = Count)) +
+  geom_tile(color = "white") +
+  geom_text(aes(label = Count), color = "black", size = 5) +
+  scale_fill_gradient(low = "white", high = "steelblue") +
+  labs(
+    title = "Confusion Matrix for Training Data (Random Forest Final Model)",
+    subtitle = paste("Final OOB Error Rate:", oob_error_rate, "%"),
+    x = "Predicted Class",
+    y = "Actual Class",
+    fill = "Count"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    plot.subtitle = element_text(hjust = 0.5),
+    axis.text = element_text(size = 12),
+    axis.title = element_text(size = 14),
+    legend.title = element_text(size = 12)
+  )
+```
+
+
+
+
 ### Evaluate
+
 ```{r}
 #evaluate
 # Predictions on the test data
@@ -1292,9 +1511,46 @@ print(conf_matrix2)
 
 ```
 
+
+```{r}
+# Create confusion matrix data
+temp_conf_matrix_data <- matrix(c(8, 0, 1, 6), nrow = 2, byrow = TRUE,
+                           dimnames = list("Actual" = c("0", "1"),
+                                           "Predicted" = c("0", "1")))
+temp_conf_matrix_df <- as.data.frame(as.table(temp_conf_matrix_data))
+
+# Add performance metrics for visualization
+temp_conf_accuracy <- 93.33  # Accuracy in percentage
+temp_conf_balanced_accuracy <- 94.44  # Balanced accuracy in percentage
+
+# Plot the confusion matrix heatmap
+ggplot(temp_conf_matrix_df, aes(x = Predicted, y = Actual, fill = Freq)) +
+  geom_tile(color = "white") +
+  geom_text(aes(label = Freq), size = 6) +
+  scale_fill_gradient(low = "white", high = "steelblue") +
+  labs(
+    title = "Confusion Matrix for Test Data (Random Forest Final Model)",
+    subtitle = paste("Accuracy:", temp_conf_accuracy, "% | Balanced Accuracy:", temp_conf_balanced_accuracy, "%"),
+    x = "Predicted Class",
+    y = "Actual Class",
+    fill = "Count"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 14),
+    plot.subtitle = element_text(hjust = 0.5, size = 12),
+    axis.text = element_text(size = 12),
+    axis.title = element_text(size = 14),
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 10)
+  )
+```
+
+
 The model performs well overall, with high accuracy (93.33%), excellent sensitivity (88.89%), and perfect specificity (100%). It is also statistically significantly better than random predictions (p = 0.005172). It missed only one instance where the true class was 1 but predicted as 0.  
 
 ### Checking for Overfitting
+
 ```{r}
 rf_cv2 <- train(winning_party_binary_2020 ~ .,
                 data = train_data2,
@@ -1306,7 +1562,7 @@ print(rf_cv2)
 
 ### Feature Importance
 
-```{r, fig.height=12}
+```{r, fig.height=12, fig.width= 10}
 # Variable importance
 
 ImpData2 <- as.data.frame(importance(rf_model2))
@@ -1328,14 +1584,15 @@ ggplot(ImpData2, aes(x=Var.Names, y=MeanDecreaseAccuracy)) +
     panel.grid.major.y = element_blank(),
     panel.border = element_blank(),
     axis.ticks.y = element_blank()
-  )
+  )+
+  ggtitle("Feature Importance: Mean Decrease Accuracy for Random Forest Final Model")
 
 ```
 
 The attributes with the lowest mean decrease accuracy in our second model are x2020_high_school_graduate_includes_equivalency, x2020_65_years_and_over, x2012_some_college_no_degree, voter_turnout_2008, and x2016_male.
 
 
-```{r, fig.height=12}
+```{r, fig.height=12, fig.width=10}
 #reorder variables based on MeanDecreaseGini to display in descending order
 ImpData2$Var.Names2 <- 
   factor(ImpData2$Var.Names,
@@ -1355,12 +1612,14 @@ ggplot(ImpData2, aes(x=Var.Names2, y=MeanDecreaseGini)) +
     panel.grid.major.y = element_blank(),
     panel.border = element_blank(),
     axis.ticks.y = element_blank()
-  )
+  )+
+  ggtitle("Feature Importance: Mean Decrease Gini for Random Forest Final Model")
 ```
 
 In our second model, the top 5 attributes are state, rawdiff_dem_vs_gop_2016, pctdiff_dem_vs_gop_2020, pctdiff_dem_vs_gop_2016, voter_turnout_dem_2020.
 
 # Prediction
+
 ```{r}
 predictions_2024 <- predict(rf_model2, df_subset2)
 
@@ -1375,6 +1634,7 @@ table(predictions_2024) # Republican Party
 The prediction results of the model show that the Republican Party would win the 2024 elections which is true to the outcome of our elections this year.
 
 ## Model predictions by state
+
 ```{r}
 #merge predictions back with original data 
 model_data3 <- model_data2
@@ -1394,6 +1654,7 @@ state_predictions%>%
 
 
 ## Actual election results by state
+
 ```{r}
 # Specify the URL
 url <- "https://www.reuters.com/graphics/USA-ELECTION/RESULTS/zjpqnemxwvx/"
@@ -1466,8 +1727,8 @@ act_vs_res <- left_join(act_res24_tbl, state_predictions, join_by(State==state))
   mutate(correctly_predicted = actual_2024==prediction_2024)
 
 act_vs_res %>% 
-  kableExtra::kable() %>% 
-  kableExtra::kable_minimal()
+  kableExtra::kable(caption = "Final Model Predictions vs. Actual 2024 Election Results") %>% 
+  kableExtra::kable_paper()
 
 ```
 
@@ -1501,8 +1762,8 @@ ggplot(cm_table, aes(x = Prediction, y = Reference, fill = Freq)) +
 #incorrect predictions
 act_vs_res %>% 
   filter(correctly_predicted== FALSE)%>% 
-  kableExtra::kable() %>% 
-  kableExtra::kable_minimal()
+  kableExtra::kable(caption = "Predicted vs. Actual Outcomes for Swing States (2024)" ) %>% 
+  kableExtra::kable_paper()
 ```
 
 
