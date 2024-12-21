@@ -644,7 +644,8 @@ vot_info_fin %>%
         legend.title = element_blank(), #removes legend title
         legend.spacing.x = unit(.25, 'cm'),
         axis.title = element_blank()
-        )
+        )+
+  ggtitle("Voter Count Distribution by Party")
 ```
 
 
@@ -665,7 +666,9 @@ corrplot.mixed(cor(cor_df %>% keep(is.numeric)),
                tl.col = 'black', tl.pos = 'lt',
                upper = "number", lower="shade",
                shade.col=NA, tl.srt=90,
-               number.cex=0.7,tl.cex=0.8)
+               number.cex=0.7,tl.cex=0.8,
+               title="Correlation Heatmap: Variable Relationship",
+               mar = c(0,0,1,0))
 
 ```
 
